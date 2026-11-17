@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./assets/banner-dark.svg">
-    <img src="./assets/banner-light.svg" alt="gas-mode: una fábrica de código verificado para Claude Code" width="100%">
+    <img src="./assets/banner-light.svg" alt="gas-mode: orquestador para Claude Code con gates de verificación. Planificar (Opus), Implementar (Sonnet), Verificar (Opus), Revisar (Opus), Commit. Si falla, vuelve a Implementar, máximo 2 rondas." width="100%">
   </picture>
 </p>
 
@@ -31,19 +31,6 @@ Un agente que implementa y se autoevalúa en el mismo contexto tiende a:
 `gas-mode` separa roles para que quien implementa no sea quien aprueba, y exige evidencia de ejecución antes de cada commit.
 
 ## Flujo
-
-```mermaid
-flowchart LR
-    T([Pedido]) --> C[Clasificar<br/>Opus]
-    C --> P[Planificar<br/>Opus]
-    P --> B[Implementar<br/>Sonnet]
-    B --> V{Verificar<br/>Opus}
-    V -- ok --> R{Revisar<br/>Opus}
-    V -- falla --> B
-    R -- hallazgo --> B
-    R -- ok --> D([Commit +<br/>Verificado:])
-    V -. 3 fallas .-> H([Escala al usuario])
-```
 
 | Etapa | Rol | Output |
 |---|---|---|
