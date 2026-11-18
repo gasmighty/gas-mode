@@ -17,22 +17,48 @@ block() {
 }
 
 word_end='([[:space:];&|)]|$)'
-git_cmd='git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+'
+git_global_opt='((-C|-c|--git-dir|--work-tree|--namespace|--config-env)[[:space:]]+[^[:space:]]+|-[^[:space:]]+)'
+git_cmd="git([[:space:]]+${git_global_opt})*[[:space:]]+"
+bq_cmd='(^|[^[:alnum:]_-])bq([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+'
 
-if [[ "$command" =~ $git_cmd(merge|rebase|reset|restore|clean)$word_end ]]; then
-  block "git ${BASH_REMATCH[2]} esta prohibido. El usuario maneja merge, rebase y descarte de cambios."
-fi
+for subcommand in merge rebase reset restore clean; do
+  if [[ "$command" =~ ${git_cmd}${subcommand}${word_end} ]]; then
+    block "git $subcommand esta prohibido. El usuario maneja merge, rebase y descarte de cambios."
+  fi
+done
 
-if [[ "$command" =~ ${git_cmd}checkout[[:space:]]+--$word_end ]]; then
-  block "git checkout -- descarta cambios y esta prohibido."
+checkout_discards_changes() {
+  local args=$1 arg
+  read -ra words <<<"$args"
+  for arg in "${words[@]}"; do
+    case "$arg" in
+      --|-f|--force|-p|--patch|--theirs|--ours|--merge|-m) return 0 ;;
+      -*) continue ;;
+    esac
+    [[ -e "$cwd/$arg" || -e "$arg" ]] && return 0
+  done
+  return 1
+}
+
+remaining=$command
+while [[ "$remaining" =~ ${git_cmd}checkout([^\;\&\|]*)(.*)$ ]]; do
+  checkout_args=${BASH_REMATCH[${#BASH_REMATCH[@]}-2]}
+  if checkout_discards_changes "$checkout_args"; then
+    block "git checkout sobre archivos descarta cambios y esta prohibido. Para cambiar de rama, usar git switch."
+  fi
+  remaining=${BASH_REMATCH[${#BASH_REMATCH[@]}-1]}
+done
+
+if [[ "$command" =~ ${git_cmd}switch[^\;\&\|]*(--discard-changes|--force|[[:space:]]-f${word_end}) ]]; then
+  block "git switch con --discard-changes o --force descarta cambios y esta prohibido."
 fi
 
 if [[ "$command" =~ ${git_cmd}commit[^\;\&\|]*--amend ]]; then
   block "git commit --amend reescribe historia y esta prohibido. Hacer un commit nuevo."
 fi
 
-if [[ "$command" =~ ${git_cmd}push[^\;\&\|]*(--force|--force-with-lease|[[:space:]]-f$word_end) ]]; then
-  block "push forzado prohibido."
+if [[ "$command" =~ ${git_cmd}push[^\;\&\|]*([[:space:]]--force|[[:space:]]--force-with-lease|[[:space:]]--mirror|[[:space:]]-[[:alpha:]]*f[[:alpha:]]*${word_end}|[[:space:]]\+[^[:space:]]) ]]; then
+  block "push forzado prohibido (--force, -f, --mirror o refspec con +)."
 fi
 
 default_branch() {
@@ -59,19 +85,47 @@ if [[ "$command" =~ ${git_cmd}commit$word_end ]]; then
   fi
 fi
 
-if [[ "$command" =~ (^|[^[:alnum:]_-])bq[[:space:]]+(mk|load|cp|rm|insert|update)$word_end ]]; then
-  block "bq ${BASH_REMATCH[2]} escribe en BigQuery. Entregar el comando al usuario para que lo corra."
+if [[ "$command" =~ ${bq_cmd}(mk|load|cp|rm|insert|update)${word_end} ]]; then
+  block "bq ${BASH_REMATCH[${#BASH_REMATCH[@]}-2]} escribe en BigQuery. Entregar el comando al usuario para que lo corra."
 fi
 
-shopt -s nocasematch
-if [[ "$command" =~ (^|[^[:alnum:]_-])bq[[:space:]]+query ]] \
-  && [[ "$command" =~ (^|[^[:alnum:]_])(insert|update|delete|merge|create|drop|truncate|alter)[[:space:]] ]] \
-  && [[ ! "$command" =~ --dry_run ]]; then
-  block "la query escribe en BigQuery. Correrla solo con --dry_run y entregar el comando al usuario."
-fi
-shopt -u nocasematch
+without_quoted_text() {
+  local text=$1
+  local quoted_re="^([^'\"]*)('[^']*'|\"[^\"]*\")(.*)$"
+  while [[ "$text" =~ $quoted_re ]]; do
+    text="${BASH_REMATCH[1]} ${BASH_REMATCH[3]}"
+  done
+  printf '%s' "$text"
+}
 
-if [[ "$command" =~ (^|[^[:alnum:]_-])dbt[[:space:]]+(run|build|seed|snapshot)$word_end ]]; then
+if [[ "$command" =~ ${bq_cmd}query${word_end} ]]; then
+  shell_text=$(without_quoted_text "$command")
+  if [[ ! "$shell_text" =~ [[:space:]]--dry_run(=true)?${word_end} ]]; then
+    if [[ "$shell_text" =~ [[:space:]]--(destination_table|replace|append_table)([=[:space:]]|$) ]]; then
+      block "bq query con --destination_table, --replace o --append_table escribe en BigQuery. Correrla solo con --dry_run y entregar el comando al usuario."
+    fi
+
+    sql_text=$command
+    if [[ "$shell_text" =~ \|[^\;\&]*bq ]]; then
+      block "no se puede revisar una query que llega a bq por un pipe. Pasarla inline o con < archivo, o correrla con --dry_run."
+    fi
+    if [[ "$shell_text" =~ (^|[^\<])\<[[:space:]]*([^\<[:space:]\;\&\|]+) ]]; then
+      sql_file=${BASH_REMATCH[2]}
+      [[ "$sql_file" != /* ]] && sql_file="$cwd/$sql_file"
+      [[ -r "$sql_file" ]] || block "no se puede leer $sql_file para revisar la query. Correrla con --dry_run."
+      sql_text+=$'\n'$(cat "$sql_file")
+    fi
+
+    shopt -s nocasematch
+    if [[ "$sql_text" =~ (^|[^[:alnum:]_])(insert|update|delete|merge|create|drop|truncate|alter)[[:space:]] ]]; then
+      shopt -u nocasematch
+      block "la query escribe en BigQuery. Correrla solo con --dry_run y entregar el comando al usuario."
+    fi
+    shopt -u nocasematch
+  fi
+fi
+
+if [[ "$command" =~ (^|[^[:alnum:]_-])dbt[[:space:]]+(run-operation|run|build|seed|snapshot|retry)$word_end ]]; then
   block "dbt ${BASH_REMATCH[2]} escribe en el warehouse. Entregar el comando al usuario."
 fi
 

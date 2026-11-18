@@ -52,12 +52,15 @@ Si la tarea mezcla tipos (por ejemplo, un bug en un pipeline), elegir el playboo
 3. Si la tarea va a modificar archivos, comparar la rama actual (`git branch --show-current`) con la rama por defecto (`git symbolic-ref --short refs/remotes/origin/HEAD`, sin el prefijo `origin/`). Si son iguales, proponer crear una rama `gas/<slug-de-la-tarea>` con `git switch -c` antes de implementar y esperar el OK. `git switch -c` conserva los cambios sin commitear. Las tareas de solo lectura no necesitan rama.
 4. Leer el playbook completo y copiar sus pasos a la lista de tareas (la herramienta de todo/tareas disponible en la sesion).
 5. Si ningun playbook encaja, o la tarea es grande y toca varios modulos: decirlo, proponer como dividirla en partes que si encajen y esperar confirmacion.
+6. Si la tarea es chica (uno o dos archivos, sin diseno que cruce modulos y sin investigacion de causa raiz), el plan y la delegacion cuestan mas que el cambio. Decirlo en una linea y preguntar si sigue en este modo o se hace directo, sin plan ni subagente.
 
 ## Roles
 
 - **Opus (esta sesion):** investiga, reproduce, decide el diseno, escribe el plan, verifica y revisa.
 - **Sonnet (subagente):** escribe el codigo.
 - **Explore (subagente):** busquedas amplias en el codebase cuando solo hace falta la conclusion (principio guard-the-context-window).
+
+La separacion que importa es de contexto: quien escribe el codigo (el subagente) no es quien lo aprueba (esta sesion). Si esta sesion no corre en Opus, decirlo en una linea al empezar; el flujo no cambia, pero la revision pierde la ventaja de un modelo mas fuerte que el que implementa.
 
 Opus edita codigo directamente solo si se cumple todo esto: un archivo, unas 10 lineas o menos, sin logica nueva (typo, rename local, valor de config, import). Tambien puede agregar instrumentacion temporal (logs) para reproducir un bug; se quita antes de terminar. Cualquier otro cambio va a Sonnet, incluidos los fixes que salen de la revision.
 
@@ -209,7 +212,9 @@ Aplica en cualquier playbook, no solo en CI/CD.
 
 Cada correccion del usuario termina, antes de cerrar la tarea, en algo que la impone. Version en el momento de `/gas-mode:correct` (que hace lo mismo sobre todo el historial).
 
-**Que cuenta como correccion:** "asi no", "siempre / nunca hace X", deshacer algo que hizo el agente o senalar un error que podria repetirse. No cuenta una preferencia sobre la tarea actual ("prefiero el boton a la derecha"). Si no esta claro, preguntar en una linea si quiere una regla.
+**Que cuenta como correccion:** una regla explicita del usuario ("siempre / nunca hace X", "asi no se hace X"). No cuenta una preferencia sobre la tarea actual ("prefiero el boton a la derecha").
+
+**Senales indirectas:** si el usuario deshace algo que hizo el agente o senala un error que podria repetirse, sin enunciar una regla, arreglar la instancia y preguntar en una linea si quiere una regla, nombrando el mecanismo propuesto (por ejemplo: "¿Lo convierto en regla con un test que falle si vuelve a pasar?"). Los pasos 2 a 7 se aplican solo si dice que si.
 
 **Pasos, en el mismo turno:**
 

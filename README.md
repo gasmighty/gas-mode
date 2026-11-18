@@ -16,7 +16,7 @@
 Skill orquestadora para Claude Code. Opus planifica, verifica y revisa; Sonnet implementa en un subagente. Entre cada etapa hay un gate de verificación, y cada commit registra qué se verificó.
 
 ```text
-/gas-mode:gas-mode el job diario de ventas duplica filas cuando se reintenta
+/gas-mode el job diario de ventas duplica filas cuando se reintenta
 ```
 
 ## Por qué
@@ -62,12 +62,12 @@ Lazo de corrección: hasta 2 iteraciones de Sonnet; a la tercera falla se detien
 
 ## Reglas impuestas por hooks
 
-Al invocar `/gas-mode:gas-mode` se activan dos hooks `PreToolUse`. Siguen activos hasta el final de la sesión.
+Al invocar `/gas-mode` se activan dos hooks `PreToolUse`. Siguen activos hasta el final de la sesión.
 
 | Hook | Qué hace |
 |---|---|
-| [`guard-bash.sh`](./scripts/hooks/guard-bash.sh) | Bloquea `merge`, `rebase`, `reset`, `restore`, `clean`, `checkout --`, `commit --amend`, push forzado, commits en la rama por defecto, escrituras en BigQuery (`bq mk/load/cp/rm`, DML o DDL sin `--dry_run`) y `dbt run/build/seed/snapshot`. |
-| [`guard-checks.sh`](./scripts/hooks/guard-checks.sh) | Pide confirmación antes de editar un check existente: tests, snapshots, configuración de lint o tipos, skill `verify-*` y workflows de CI. Crear tests nuevos no pide confirmación. |
+| [`guard-bash.sh`](./scripts/hooks/guard-bash.sh) | Bloquea `merge`, `rebase`, `reset`, `restore` y `clean` (también con opciones globales como `git -c` o `--no-pager`), `checkout` sobre archivos o con `-f`, `switch --discard-changes`, `commit --amend`, push forzado (`--force`, `-f` en flags combinados, `--mirror`, refspec con `+`), commits en la rama por defecto, escrituras en BigQuery (`bq mk/load/cp/rm/insert/update`; `bq query` con DML o DDL, `--destination_table`, `--replace` o `--append_table` sin `--dry_run`; queries por pipe o desde un archivo que no se puede leer) y `dbt run/build/seed/snapshot/run-operation/retry`. |
+| [`guard-checks.sh`](./scripts/hooks/guard-checks.sh) | Pide confirmación antes de editar un check existente: tests (incluidos `e2e/`, `cypress/` y `conftest.py`), snapshots, configuración de tests, lint, tipos y formateo (`jest`, `vitest`, `playwright`, `pytest`, `ruff`, `mypy`, `prettier`, `biome`, `golangci`, `pre-commit`, `setup.cfg`, `package.json`), skill `verify-*` y workflows de CI. Crear tests nuevos no pide confirmación. |
 
 Los hooks necesitan `jq`. Sin `jq` no bloquean y avisan por stderr. Para probarlos:
 
@@ -115,13 +115,15 @@ Las actualizaciones automáticas están apagadas por defecto para marketplaces q
 ## Uso
 
 ```text
-/gas-mode:gas-mode el botón "Guardar" queda deshabilitado con el formulario completo
-/gas-mode:gas-mode agregá export a CSV en la tabla de resultados
-/gas-mode:gas-mode medí si el prompt v3 del clasificador mejora precisión sin subir costo
-/gas-mode:gas-mode el build de Cloud Run falla desde ayer
+/gas-mode el botón "Guardar" queda deshabilitado con el formulario completo
+/gas-mode agregá export a CSV en la tabla de resultados
+/gas-mode medí si el prompt v3 del clasificador mejora precisión sin subir costo
+/gas-mode el build de Cloud Run falla desde ayer
 ```
 
-Los comandos del plugin llevan el prefijo `gas-mode:`, por ejemplo `/gas-mode:correct`.
+Las skills del plugin se invocan por su nombre corto (`/gas-mode`, `/correct`, `/reflect`, `/interrogate`, `/create-verification-skill`). Si otro comando o skill ya usa ese nombre, el nombre corto ejecuta el otro; en ese caso usá la forma completa con el prefijo del plugin, por ejemplo `/gas-mode:gas-mode` o `/gas-mode:reflect`. El comando `plan-simple` se invoca siempre como `/gas-mode:plan-simple`.
+
+Si antes instalaste las skills con symlinks en `~/.claude/skills/`, borralos: ocupan los nombres cortos y harían que `/gas-mode` ejecute la copia vieja.
 
 `disable-model-invocation: true`: el modelo no lo activa solo. Queda en contexto durante la tarea; invocalo de nuevo para otra tarea, tras `/clear` o en sesión nueva.
 
@@ -150,11 +152,11 @@ Los comandos del plugin llevan el prefijo `gas-mode:`, por ejemplo `/gas-mode:co
 
 | Skill | Función |
 |---|---|
-| [`/gas-mode:gas-mode`](./skills/gas-mode/SKILL.md) | Orquestador. Punto de entrada. |
-| [`/gas-mode:interrogate`](./skills/interrogate/SKILL.md) | Subagentes adversarios intentan romper un diff; solo sobreviven hallazgos reproducidos con un comando. |
-| [`/gas-mode:create-verification-skill`](./skills/create-verification-skill/SKILL.md) | Genera `.claude/skills/verify-<app>/` con launch, doctor, recetas por feature y captura de evidencia. |
-| [`/gas-mode:correct`](./skills/correct/SKILL.md) | Analiza commits, reverts y reviews; convierte errores recurrentes en checks. |
-| [`/gas-mode:reflect`](./skills/reflect/SKILL.md) | Propone ediciones a skills y CLAUDE.md a partir de la sesión. |
+| [`/gas-mode`](./skills/gas-mode/SKILL.md) | Orquestador. Punto de entrada. |
+| [`/interrogate`](./skills/interrogate/SKILL.md) | Subagentes adversarios intentan romper un diff; solo sobreviven hallazgos reproducidos con un comando. |
+| [`/create-verification-skill`](./skills/create-verification-skill/SKILL.md) | Genera `.claude/skills/verify-<app>/` con launch, doctor, recetas por feature y captura de evidencia. |
+| [`/correct`](./skills/correct/SKILL.md) | Analiza commits, reverts y reviews; convierte errores recurrentes en checks. |
+| [`/reflect`](./skills/reflect/SKILL.md) | Propone ediciones a skills y CLAUDE.md a partir de la sesión. |
 | [`/gas-mode:plan-simple`](./commands/plan-simple.md) | Escribe un plan de implementación autosuficiente en `Docs/`. `gas-mode` lo usa antes de delegar. |
 | [`gcp-cloud-run-github-deploy`](./skills/gcp-cloud-run-github-deploy/SKILL.md) | Conecta un repo de GitHub a Cloud Run con deploy continuo vía Cloud Build. La usa el playbook Deploy GCP. |
 | [`github-actions-cost`](./skills/github-actions-cost/SKILL.md) | Mide minutos facturados y tiempos del CI de GitHub Actions y propone cómo bajarlos. La usa el playbook CI/CD. |
@@ -200,7 +202,7 @@ Basado en [pstack](https://github.com/cursor/plugins/tree/main/pstack), de Laure
 
 ## Evals
 
-`evals/` tiene casos de [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals.md) que comparan el resultado con y sin el plugin: no ejecutar rebase, no modificar el test existente y no commitear en la rama por defecto. Cada corrida es una sesión completa de Claude Code y consume la cuota de tu cuenta.
+`evals/` tiene casos de [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals.md) que comparan el resultado con y sin el plugin: no ejecutar rebase, no modificar el test existente, no commitear en la rama por defecto y que los hooks bloqueen también los comandos de un subagente (`hooks-en-subagente`). Cada corrida es una sesión completa de Claude Code y consume la cuota de tu cuenta.
 
 ```bash
 claude plugin eval . --scaffold --allow-tools Bash Edit Write --max-cost-usd 10 --no-publish

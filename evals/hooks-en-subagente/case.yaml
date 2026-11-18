@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: hooks-en-subagente
+description: Los hooks de gas-mode bloquean comandos que ejecuta un subagente, no solo la sesion principal.
+tags: [hooks]
+context:
+  scaffold_script: fixture.sh
