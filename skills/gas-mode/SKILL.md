@@ -31,8 +31,9 @@ Excepcion: las autorizaciones de la seccion "Autonomia" (Playwright, Sonnet, com
 
 ## Al empezar
 
-1. Reformular en una o dos oraciones el objetivo del usuario y el cambio mas chico que lo cumple.
-2. Elegir el playbook:
+1. Correr `command -v jq`. Si no esta instalado, los hooks no bloquean nada. Decirselo al usuario, darle el comando para instalarlo (`brew install jq` en macOS, `sudo apt-get install jq` en Debian o Ubuntu) y no seguir hasta que lo instale o acepte explicitamente trabajar sin hooks.
+2. Reformular en una o dos oraciones el objetivo del usuario y el cambio mas chico que lo cumple.
+3. Elegir el playbook:
 
 | Pedido | Playbook |
 |---|---|
@@ -49,8 +50,8 @@ Excepcion: las autorizaciones de la seccion "Autonomia" (Playwright, Sonnet, com
 
 Si la tarea mezcla tipos (por ejemplo, un bug en un pipeline), elegir el playbook del dominio (Datos, IA / Eval, Deploy GCP) y aplicar los pasos de causa raiz de `playbooks/bug-fix.md` dentro de el.
 
-3. Si la tarea va a modificar archivos, comparar la rama actual (`git branch --show-current`) con la rama por defecto (`git symbolic-ref --short refs/remotes/origin/HEAD`, sin el prefijo `origin/`). Si son iguales, proponer crear una rama `gas/<slug-de-la-tarea>` con `git switch -c` antes de implementar y esperar el OK. `git switch -c` conserva los cambios sin commitear. Las tareas de solo lectura no necesitan rama.
-4. Elegir el carril (ver "Carriles") y decirlo en una linea con el motivo. El usuario puede pedir el otro.
+4. Si la tarea va a modificar archivos, comparar la rama actual (`git branch --show-current`) con la rama por defecto (`git symbolic-ref --short refs/remotes/origin/HEAD`, sin el prefijo `origin/`). Si son iguales, proponer crear una rama `gas/<slug-de-la-tarea>` con `git switch -c` antes de implementar y esperar el OK. `git switch -c` conserva los cambios sin commitear. Las tareas de solo lectura no necesitan rama.
+5. Elegir el carril (ver "Carriles") y decirlo en una linea con el motivo. El usuario puede pedir el otro.
 
 | Tarea | Carril |
 |---|---|
@@ -58,8 +59,8 @@ Si la tarea mezcla tipos (por ejemplo, un bug en un pipeline), elegir el playboo
 | Mediana: pocos archivos de un mismo modulo o area, sin diseno que cruce limites entre modulos | Mediano |
 | Grande: cruza modulos, necesita "Boceto de arquitectura", o es de riesgo alto (concurrencia, escrituras de datos, auth, pagos, migraciones de API) | Completo |
 
-5. Leer el playbook completo y copiar sus pasos a la lista de tareas (la herramienta de todo/tareas disponible en la sesion).
-6. Si ningun playbook encaja, o la tarea es tan grande que no entra en un carril completo: decirlo, proponer como dividirla en partes que si encajen y esperar confirmacion.
+6. Leer el playbook completo y copiar sus pasos a la lista de tareas (la herramienta de todo/tareas disponible en la sesion).
+7. Si ningun playbook encaja, o la tarea es tan grande que no entra en un carril completo: decirlo, proponer como dividirla en partes que si encajen y esperar confirmacion.
 
 ## Carriles
 
@@ -76,14 +77,9 @@ Si esta sesion corre en Opus, decirlo una vez al empezar: el carril funciona igu
 Los playbooks estan escritos para el carril completo. En este carril: "Opus" es esta sesion; "Escribir el plan (plan-simple)" es el plan en la lista de tareas; "Delegar a Sonnet" es implementar en esta sesion.
 
 1. **Plan:** entre 3 y 10 pasos en la lista de tareas, cada uno con como verificarlo. Sin archivo en `Docs/`.
-2. **Implementar** en esta sesion, respetando "Los checks no se tocan".
+2. **Implementar** en esta sesion, respetando "Los checks no se tocan". Antes del primer cambio, anotar el commit base (`git rev-parse HEAD`).
 3. **Verificar** segun "Verificacion".
-4. **Revisar con contexto limpio.** Anotar el commit base antes de implementar (`git rev-parse HEAD`). Lanzar la herramienta `Agent` con `subagent_type: general-purpose` y `model: opus`. El prompt lleva:
-   - el pedido del usuario reformulado y el cambio mas chico que lo cumple;
-   - la salida de la verificacion (comandos y resultados);
-   - la instruccion de leer el diff con `git diff <commit base>` y los archivos que necesite, sin editar nada ni correr comandos que escriban;
-   - que busque bugs, casos sin cubrir, desvios del pedido y checks debilitados (la lista de "Los checks no se tocan");
-   - que devuelva cada hallazgo con `archivo:linea`, el escenario que falla y su gravedad, o "sin hallazgos".
+4. **Revisar con contexto limpio.** Lanzar la herramienta `Agent` con `subagent_type: gas-mode:revisor` (agente del plugin: Opus, sin herramientas de edicion, con las reglas de revision en `${CLAUDE_PLUGIN_ROOT}/agents/revisor.md`). El prompt lleva solo el pedido del usuario reformulado con el cambio mas chico que lo cumple, el commit base y la salida de la verificacion (comandos y resultados). Si el agente no esta disponible, usar `subagent_type: general-purpose` con `model: opus` y pasarle como prompt el cuerpo de `agents/revisor.md` mas esos datos.
 5. **Una ronda de correccion.** Confirmar cada hallazgo (reproducirlo o leer el codigo) y descartar con motivo los que no se confirman. Corregir los confirmados en esta sesion y volver a verificar. Si las correcciones cambiaron logica, lanzar una segunda revision igual a la primera. Si la segunda vuelve con bugs confirmados, frenar: la tarea no era mediana. Informar al usuario y proponer seguir en el carril completo.
 6. **Commit** segun "Commits".
 

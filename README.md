@@ -44,7 +44,7 @@ Al empezar, `gas-mode` mide la tarea y elige uno de dos carriles. Te dice cuál 
 |---|---|---|
 | Cuándo | Pocos archivos de un mismo módulo o área, sin diseño que cruce módulos. | Cruza módulos, necesita diseñar firmas entre ellos, o es de riesgo alto (concurrencia, escrituras de datos, auth, pagos, migraciones de API). |
 | Quién implementa | La sesión principal, que ya leyó el código. | Un subagente Sonnet, a partir de un plan escrito. |
-| Quién revisa | Un subagente Opus que no participó: lee el pedido, el diff y la verificación. | Opus, en la sesión principal. |
+| Quién revisa | El agente [`gas-mode:revisor`](./agents/revisor.md): Opus, sin herramientas de edición, no participó de la implementación. Lee el pedido, el diff y la verificación. | Opus, en la sesión principal. |
 | Plan | Lista de pasos en la sesión. | Archivo en `Docs/` con tareas, firmas y verificación por tarea. |
 | Correcciones | Una ronda. Si el revisor encuentra bugs dos veces, la tarea pasa al carril completo. | Hasta 2 iteraciones de Sonnet. |
 
@@ -87,7 +87,7 @@ Al invocar `/gas-mode` se activan dos hooks `PreToolUse`. Siguen activos hasta e
 | [`guard-bash.sh`](./scripts/hooks/guard-bash.sh) | Bloquea `merge`, `rebase`, `reset`, `restore` y `clean` (también con opciones globales como `git -c` o `--no-pager`), `checkout` sobre archivos o con `-f`, `switch --discard-changes`, `commit --amend`, push forzado (`--force`, `-f` en flags combinados, `--mirror`, refspec con `+`), commits en la rama por defecto, escrituras en BigQuery (`bq mk/load/cp/rm/insert/update`; `bq query` con DML o DDL, `--destination_table`, `--replace` o `--append_table` sin `--dry_run`; queries por pipe o desde un archivo que no se puede leer) y `dbt run/build/seed/snapshot/run-operation/retry`. |
 | [`guard-checks.sh`](./scripts/hooks/guard-checks.sh) | Pide confirmación antes de editar un check existente: tests (incluidos `e2e/`, `cypress/` y `conftest.py`), snapshots, configuración de tests, lint, tipos y formateo (`jest`, `vitest`, `playwright`, `pytest`, `ruff`, `mypy`, `prettier`, `biome`, `golangci`, `pre-commit`, `setup.cfg`, `package.json`), skill `verify-*` y workflows de CI. Crear tests nuevos no pide confirmación. |
 
-Los hooks necesitan `jq`. Sin `jq` no bloquean y avisan por stderr. Para probarlos:
+Los hooks necesitan `jq`. Sin `jq` no bloquean, así que `gas-mode` lo revisa al empezar y no sigue hasta que lo instales o aceptes trabajar sin hooks. Para probarlos:
 
 ```bash
 bash tests/hooks/run.sh
@@ -128,6 +128,8 @@ Las actualizaciones automáticas están apagadas por defecto para marketplaces q
 
 1. Subir `version` en [`.claude-plugin/plugin.json`](./.claude-plugin/plugin.json). Sin ese cambio, los usuarios no reciben la versión nueva.
 2. Correr `claude plugin validate .` y `bash tests/hooks/run.sh`.
+
+El [CI](./.github/workflows/ci.yml) corre en cada push a `main` y en cada PR: ejecuta los tests de hooks y falla si cambiaron archivos que se distribuyen con el plugin (`skills/`, `commands/`, `agents/`, `scripts/hooks/`, `.claude-plugin/`) sin subir `version`.
 3. Mergear a `main`. Para la biblioteca de la organización, publicar la versión nueva desde claude.ai.
 
 ## Uso
@@ -176,6 +178,7 @@ Si antes instalaste las skills con symlinks en `~/.claude/skills/`, borralos: oc
 | [`/correct`](./skills/correct/SKILL.md) | Analiza commits, reverts y reviews; convierte errores recurrentes en checks. |
 | [`/reflect`](./skills/reflect/SKILL.md) | Propone ediciones a skills y CLAUDE.md a partir de la sesión. |
 | [`/gas-mode:plan-simple`](./commands/plan-simple.md) | Escribe un plan de implementación autosuficiente en `Docs/`. `gas-mode` lo usa antes de delegar. |
+| [`gas-mode:revisor`](./agents/revisor.md) | Agente. Revisor con contexto limpio del carril mediano. Solo lee y verifica; devuelve hallazgos con evidencia. |
 | [`gcp-cloud-run-github-deploy`](./skills/gcp-cloud-run-github-deploy/SKILL.md) | Conecta un repo de GitHub a Cloud Run con deploy continuo vía Cloud Build. La usa el playbook Deploy GCP. |
 | [`github-actions-cost`](./skills/github-actions-cost/SKILL.md) | Mide minutos facturados y tiempos del CI de GitHub Actions y propone cómo bajarlos. La usa el playbook CI/CD. |
 | [`github-actions-hardening`](./skills/github-actions-hardening/SKILL.md) | Revisión de seguridad de workflows de GitHub Actions. La usa el playbook CI/CD. |
@@ -220,7 +223,7 @@ Basado en [pstack](https://github.com/cursor/plugins/tree/main/pstack), de Laure
 
 ## Evals
 
-`evals/` tiene casos de [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals.md) que comparan el resultado con y sin el plugin: no ejecutar rebase, no modificar el test existente, no commitear en la rama por defecto y que los hooks bloqueen también los comandos de un subagente (`hooks-en-subagente`). Cada corrida es una sesión completa de Claude Code y consume la cuota de tu cuenta.
+`evals/` tiene casos de [`claude plugin eval`](https://code.claude.com/docs/en/plugin-evals.md) que comparan el resultado con y sin el plugin: no ejecutar rebase, no modificar el test existente, no commitear en la rama por defecto, que los hooks bloqueen también los comandos de un subagente (`hooks-en-subagente`) y que una tarea mediana vaya por el carril mediano y quede implementada (`carril-mediano`). El reporte de `carril-mediano` muestra costo y turnos con y sin el plugin. Cada corrida es una sesión completa de Claude Code y consume la cuota de tu cuenta.
 
 ```bash
 claude plugin eval . --scaffold --allow-tools Bash Edit Write --max-cost-usd 10 --no-publish

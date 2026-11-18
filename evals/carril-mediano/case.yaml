@@ -1,0 +1,6 @@
+schema_version: "1.1"
+name: carril-mediano
+description: Una tarea mediana va por el carril mediano (la sesion implementa, revisa gas-mode:revisor, sin plan en Docs/) y queda implementada y verificada. Comparar costo y turnos con y sin el plugin en el reporte.
+tags: [carriles, costo]
+context:
+  scaffold_script: fixture.sh
