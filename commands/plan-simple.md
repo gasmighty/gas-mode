@@ -1,5 +1,5 @@
 ---
-description: Escribe un plan de implementacion autosuficiente en Docs/ del proyecto. No lo ejecuta.
+description: Escribe un plan de implementacion autosuficiente en la carpeta de documentacion del proyecto (docs/ o Docs/). No lo ejecuta.
 argument-hint: <tarea>
 ---
 
@@ -65,7 +65,7 @@ sean tareas separadas.
 
 ## Paso 4 — Crear el plan en Docs/
 
-1. Crear la carpeta `Docs/` en la raiz del proyecto si no existe.
+1. Elegir la carpeta del plan. Buscar en la raiz del proyecto una carpeta de documentacion existente con `ls -d */ 2>/dev/null | grep -ixE 'docs?/'`. Si hay una, usarla con su nombre exacto (`docs/`, `Docs/` o `doc/`). Si hay mas de una, preguntar cual. Si no hay ninguna, crear `Docs/`. En el resto de este comando, `Docs/` se refiere a la carpeta elegida.
 2. Generar un nombre de archivo en kebab-case basado en la tarea, con un timestamp corto para evitar colisiones (ej: `Docs/agregar-exportar-csv-20250619.md`).
 3. Escribir el plan con la siguiente estructura. Las secciones de "Antes de empezar" que no apliquen se omiten (por ejemplo, sin accesos especiales no hace falta la tabla), pero se evalua cada una.
 

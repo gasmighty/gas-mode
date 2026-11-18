@@ -13,6 +13,10 @@ hooks:
       hooks:
         - type: command
           command: '"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/guard-checks.sh"'
+    - matcher: "mcp__plugin_playwright_playwright__.*"
+      hooks:
+        - type: command
+          command: '"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/guard-playwright-output.sh"'
 ---
 
 # Gas mode
@@ -21,7 +25,7 @@ Adaptado de `poteto-mode` del plugin pstack (MIT, ver `LICENSE` en esta carpeta)
 Carpeta de la skill: `${CLAUDE_SKILL_DIR}`. Los playbooks estan en `playbooks/`, los principios en `principles/`, el flujo de delegacion en `references/sonnet-plan.md` y las secciones que se leen solo cuando aplican en `references/`.
 Raiz del plugin: `${CLAUDE_PLUGIN_ROOT}`. Los playbooks la nombran como `<raiz del plugin>`.
 
-Al invocar este modo se activan dos hooks que siguen activos hasta el final de la sesion: `guard-bash.sh` bloquea comandos prohibidos (ver "Autonomia") y `guard-checks.sh` pide confirmacion antes de editar un check existente (ver "Los checks no se tocan"). Si un hook bloquea una accion, no buscar otra forma de hacerla: informar al usuario.
+Al invocar este modo se activan tres hooks que siguen activos hasta el final de la sesion: `guard-bash.sh` bloquea comandos prohibidos (ver "Autonomia"), `guard-checks.sh` pide confirmacion antes de editar un check existente (ver "Los checks no se tocan") y `guard-playwright-output.sh` bloquea Playwright mientras su carpeta de salida no este en el `.gitignore` (ver "Browser"). Si un hook bloquea una accion, no buscar otra forma de hacerla: informar al usuario. La excepcion es `guard-playwright-output.sh`: su bloqueo se resuelve agregando la entrada que pide al `.gitignore`.
 
 ## Precedencia
 
@@ -194,13 +198,16 @@ Umbrales (editables):
 - **BigQuery:** 100 GB por query o 500 GB acumulados en la tarea, segun `bq query --dry_run`.
 - **LLM:** USD 5 estimados por corrida o 300 llamadas.
 - **Cloud:** cualquier recurso nuevo o que cobre por uso (ya requiere confirmacion por "Autonomia").
+- **Subagentes:** 8 subagentes lanzados en la tarea, contando Explore, revisor, Sonnet y los adversarios de "Revision adversarial". Un `SendMessage` a un subagente existente no suma.
 
 Debajo del umbral, avanzar e informar el costo en la respuesta. Por encima, preguntar antes mostrando la estimacion y como se calculo. Si no se puede estimar, preguntar.
+
+El umbral de LLM cubre las llamadas que hace el codigo del proyecto (evals, pipelines), no a los agentes de esta sesion. Los tokens de un subagente no se estiman antes de lanzarlo: se leen del uso que informa su resultado al terminar. En la respuesta final, una linea con la cantidad de subagentes y la suma de sus tokens (por ejemplo, `Subagentes: 3, 184k tokens (Sonnet 120k, revisor 41k, Explore 23k).`). Si un resultado no informa tokens, decirlo en esa linea en vez de estimarlos.
 
 ## Browser
 
 - Playwright se usa sin preguntar para reproducir bugs y verificar cambios de UI, contra el servidor de desarrollo local en su puerto por defecto.
-- Screenshots, trazas y cualquier archivo que genere Playwright van a un directorio incluido en el `.gitignore` del proyecto. Si no lo esta, agregarlo antes de generar archivos.
+- Screenshots, trazas y cualquier archivo que genere Playwright van a un directorio incluido en el `.gitignore` del proyecto. El MCP escribe en `.playwright-mcp/` cuando no recibe `filename`, y resuelve un `filename` relativo contra la raiz del proyecto. `guard-playwright-output.sh` bloquea las herramientas de Playwright hasta que `.playwright-mcp/`, y la ruta de `filename` si cae dentro del repo, esten ignoradas. Para screenshots con nombre, usar `.playwright-mcp/<nombre>.png`. Si bloquea, agregar la entrada al `.gitignore` y reintentar. El hook no cubre `playwright test` por Bash: antes de correrlo, confirmar que `test-results/` y `playwright-report/` esten ignorados.
 - No enviar formularios que escriban datos reales ni loguearse con credenciales del usuario sin preguntar.
 
 ## Commits
@@ -244,6 +251,8 @@ Solo en el carril completo. Para cambios con diseno discutible o riesgo alto (co
 Oraciones cortas. Empezar por lo que cambia para el usuario. Cada afirmacion lleva su evidencia o una etiqueta: medido, inferido o supuesto. El contenido especifico de la respuesta lo define cada playbook.
 
 Antes de cerrar, repasar la tarea con el principio `proponer-determinismo`. Si algo se repitio, terminar con una linea que proponga el script, hook, skill o check concreto (que, donde y como se invoca), sin construirlo. Si ya se propuso durante la tarea, no repetirlo.
+
+Terminar con la linea de subagentes de "Control de costos" si se lanzo alguno.
 
 Si hubo correcciones, listar al final cada regla con su mecanismo, su estado en la tabla y el commit `correct:`.
 

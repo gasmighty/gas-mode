@@ -1,6 +1,6 @@
 {
   "name": "gas-mode",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Modo de trabajo riguroso para Claude Code: quien implementa no aprueba. Carril mediano (la sesion implementa, un revisor Opus aprueba) y carril completo (Opus planifica, Sonnet implementa). Playbooks de software, datos, IA y deploy en GCP.",
   "author": { "name": "gasmighty" },
   "repository": "https://github.com/gasmighty/gas-mode",

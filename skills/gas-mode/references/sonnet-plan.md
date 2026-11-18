@@ -19,7 +19,7 @@ Extraer: stack, convenciones, librerias instaladas, restricciones, patrones del 
 
 ## Paso 2 — Crear el plan en Docs/
 
-1. Crear `Docs/` en la raiz del proyecto si no existe.
+1. Elegir la carpeta del plan. Buscar en la raiz del proyecto una carpeta de documentacion existente con `ls -d */ 2>/dev/null | grep -ixE 'docs?/'`. Si hay una, usarla con su nombre exacto (`docs/`, `Docs/` o `doc/`). Si hay mas de una, preguntar cual. Si no hay ninguna, crear `Docs/`. En el resto de este flujo, `Docs/` se refiere a la carpeta elegida.
 2. Nombre en kebab-case con timestamp corto (ej: `Docs/agregar-exportar-csv-20250619.md`).
 3. Escribir el plan. El ejecutor no ve esta conversacion, asi que el plan debe ser autosuficiente.
 

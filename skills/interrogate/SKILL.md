@@ -15,7 +15,7 @@ Varios adversarios intentan romper un cambio o un diseno. Un hallazgo sobrevive 
 ## 1. Encuadre
 
 - **Alcance:** lo que nombre el usuario. Si no nombra nada, el diff de la rama contra su base (`git merge-base HEAD main`, o la rama base que corresponda) mas los cambios sin commitear.
-- **Intencion:** reformular en dos o tres oraciones que tiene que lograr el cambio, a partir del pedido del usuario, los commits y el plan en `Docs/` si existe. Si la intencion no es clara, preguntar.
+- **Intencion:** reformular en dos o tres oraciones que tiene que lograr el cambio, a partir del pedido del usuario, los commits y el plan en la carpeta de documentacion del proyecto (`docs/` o `Docs/`) si existe. Si la intencion no es clara, preguntar.
 - `<scratch>` es el directorio scratch de la sesion si existe; si no, uno creado con `mktemp -d`. Siempre fuera del repo.
 - Guardar el estado del arbol: `git status --porcelain > <scratch>/interrogate-before.txt`.
 

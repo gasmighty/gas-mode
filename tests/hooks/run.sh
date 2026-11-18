@@ -136,6 +136,40 @@ done
 touch "$work/README.md"
 edit_case allow Edit "$work/README.md"
 
+guard_playwright="$root/scripts/hooks/guard-playwright-output.sh"
+
+playwright_case() {
+  local expected=$1 cwd=$2 filename=$3
+  jq -n --arg cwd "$cwd" --arg filename "$filename" \
+    '{tool_name: "mcp__plugin_playwright_playwright__browser_take_screenshot", cwd: $cwd, tool_input: (if $filename == "" then {} else {filename: $filename} end)}' \
+    | env -u CLAUDE_PROJECT_DIR "$guard_playwright" >/dev/null 2>&1
+  local actual=$?
+  local name="playwright [$expected] ${cwd#"$work_real"/} ${filename#"$work_real"/}"
+  if [[ "$actual" == "$expected" ]]; then
+    report OK "$name" ""
+  else
+    report FAIL "$name" "salio con $actual"
+  fi
+}
+
+work_real=$(cd "$work" && pwd -P)
+web="$work_real/web"
+git init -q "$web"
+mkdir -p "$web/shots" "$web/app"
+
+playwright_case 2 "$web" ""
+printf '.playwright-mcp/\n' > "$web/.gitignore"
+playwright_case 0 "$web" ""
+playwright_case 2 "$web" "captura.png"
+playwright_case 2 "$web" "$web/shots/captura.png"
+playwright_case 0 "$web" "$work_real/fuera/captura.png"
+printf '.playwright-mcp\nshots/\n' > "$web/.gitignore"
+playwright_case 0 "$web" "$web/shots/captura.png"
+playwright_case 0 "$web" "shots/captura.png"
+playwright_case 0 "$web" ".playwright-mcp/captura.png"
+playwright_case 0 "$web/app" ""
+playwright_case 0 "$work_real" ""
+
 echo
 if [[ "$failures" -gt 0 ]]; then
   echo "$failures caso(s) fallaron"

@@ -45,7 +45,7 @@ Al empezar, `gas-mode` mide la tarea y elige uno de dos carriles. Te dice cuál 
 | Cuándo | Pocos archivos de un mismo módulo o área, sin diseño que cruce módulos. | Cruza módulos, necesita diseñar firmas entre ellos, o es de riesgo alto (concurrencia, escrituras de datos, auth, pagos, migraciones de API). |
 | Quién implementa | La sesión principal, que ya leyó el código. | Un subagente Sonnet, a partir de un plan escrito. |
 | Quién revisa | El agente [`gas-mode:revisor`](./agents/revisor.md): Opus, sin herramientas de edición, no participó de la implementación. Lee el pedido, el diff y la verificación. | Opus, en la sesión principal. |
-| Plan | Lista de pasos en la sesión. | Archivo en `Docs/` con tareas, firmas y verificación por tarea. |
+| Plan | Lista de pasos en la sesión. | Archivo en la carpeta de documentación del proyecto (`docs/` o `Docs/`; si no hay ninguna, crea `Docs/`) con tareas, firmas y verificación por tarea. |
 | Correcciones | Una ronda. Si el revisor encuentra bugs dos veces, la tarea pasa al carril completo. | Hasta 2 iteraciones de Sonnet. |
 
 Por qué hay dos: en una tarea mediana, escribir un plan para que otro agente vuelva a leer el código cuesta más que el cambio. El carril mediano evita ese traspaso, pero mantiene lo importante: quien aprueba no es quien implementó, y nada se commitea sin verificar.
@@ -80,12 +80,13 @@ Lazo de corrección: hasta 2 iteraciones de Sonnet; a la tercera falla se detien
 
 ## Reglas impuestas por hooks
 
-Al invocar `/gas-mode` se activan dos hooks `PreToolUse`. Siguen activos hasta el final de la sesión.
+Al invocar `/gas-mode` se activan tres hooks `PreToolUse`. Siguen activos hasta el final de la sesión.
 
 | Hook | Qué hace |
 |---|---|
 | [`guard-bash.sh`](./scripts/hooks/guard-bash.sh) | Bloquea `merge`, `rebase`, `reset`, `restore` y `clean` (también con opciones globales como `git -c` o `--no-pager`), `checkout` sobre archivos o con `-f`, `switch --discard-changes`, `commit --amend`, push forzado (`--force`, `-f` en flags combinados, `--mirror`, refspec con `+`), commits en la rama por defecto, escrituras en BigQuery (`bq mk/load/cp/rm/insert/update`; `bq query` con DML o DDL, `--destination_table`, `--replace` o `--append_table` sin `--dry_run`; queries por pipe o desde un archivo que no se puede leer) y `dbt run/build/seed/snapshot/run-operation/retry`. |
 | [`guard-checks.sh`](./scripts/hooks/guard-checks.sh) | Pide confirmación antes de editar un check existente: tests (incluidos `e2e/`, `cypress/` y `conftest.py`), snapshots, configuración de tests, lint, tipos y formateo (`jest`, `vitest`, `playwright`, `pytest`, `ruff`, `mypy`, `prettier`, `biome`, `golangci`, `pre-commit`, `setup.cfg`, `package.json`), skill `verify-*` y workflows de CI. Crear tests nuevos no pide confirmación. |
+| [`guard-playwright-output.sh`](./scripts/hooks/guard-playwright-output.sh) | Bloquea las herramientas del MCP de Playwright mientras `.playwright-mcp/` (su carpeta de salida) no esté en el `.gitignore`, y también si `filename` cae dentro del repo en una ruta que no está ignorada (un `filename` relativo se guarda en la raíz del proyecto). Fuera de un repo git no bloquea. No cubre `playwright test` corrido por Bash. |
 
 Los hooks necesitan `jq`. Sin `jq` no bloquean, así que `gas-mode` lo revisa al empezar y no sigue hasta que lo instales o aceptes trabajar sin hooks. Para probarlos:
 
