@@ -40,7 +40,7 @@ Pedir confirmacion explicita para agregar una dependencia nueva (plugin de lint,
 
 ## 4. Implementar lo aprobado
 
-- Implementar con el flujo de `/gas-mode:gas-mode` (`${CLAUDE_PLUGIN_ROOT}/skills/gas-mode/SKILL.md`, seccion "Delegacion a Sonnet"): Opus escribe el plan, Sonnet implementa, Opus verifica y revisa. Una tarea del plan por clase.
+- Implementar con el flujo de `/gas-mode:gas-mode` (`${CLAUDE_PLUGIN_ROOT}/skills/gas-mode/SKILL.md`, secciones "Carril completo" y "Delegacion a Sonnet"): Opus escribe el plan, Sonnet implementa, Opus verifica y revisa. Una tarea del plan por clase.
 - Probar que cada check nuevo falla sobre un error real del pasado: reproducir ese error en un archivo temporal nuevo (no editar archivos existentes para esto), correr el check, ver que falla con el mensaje esperado y borrar el archivo temporal.
 - Correr el mismo comando localmente que en CI.
 - Las excepciones van en la linea afectada, con motivo, fecha de vencimiento y aprobacion del usuario.
@@ -48,7 +48,7 @@ Pedir confirmacion explicita para agregar una dependencia nueva (plugin de lint,
 
 ## 5. Mantener la tabla de reglas
 
-Usar la misma tabla que `/gas-mode:gas-mode` (seccion "Correcciones" de `${CLAUDE_PLUGIN_ROOT}/skills/gas-mode/SKILL.md`): seccion `## Reglas impuestas` del CLAUDE.md del proyecto, con columnas Regla, Lo impone, Nivel y Estado. Editar el archivo real que resolvio `readlink -f`. Si una regla ya estaba en la tabla y nada la impone, es una repeticion: subirla de nivel en el mismo cambio. Borrar una regla cuando su error ya no puede ocurrir.
+Usar la misma tabla que `/gas-mode:gas-mode` (`${CLAUDE_PLUGIN_ROOT}/skills/gas-mode/references/correcciones.md`): seccion `## Reglas impuestas` del CLAUDE.md del proyecto, con columnas Regla, Lo impone, Nivel y Estado. Editar el archivo real que resolvio `readlink -f`. Si una regla ya estaba en la tabla y nada la impone, es una repeticion: subirla de nivel en el mismo cambio. Borrar una regla cuando su error ya no puede ocurrir.
 
 `/gas-mode:gas-mode` aplica este mismo proceso en el momento, ante cada correccion del usuario. `/gas-mode:correct` es la version que revisa todo el historial: usarla al empezar en un repo o cuando la tabla no refleja errores que se ven en los commits.
 

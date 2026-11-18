@@ -1,6 +1,6 @@
 ---
 name: gas-mode
-description: Modo de trabajo riguroso para tareas de codigo. Opus investiga, planifica, verifica y revisa; Sonnet implementa. Rutea la tarea a un playbook (investigacion, bug fix, feature, refactor, perf, prototipo) y aplica principios de ingenieria. Se usa solo cuando el usuario escribe /gas-mode:gas-mode.
+description: Modo de trabajo riguroso para tareas de codigo medianas y grandes. Carril mediano, la sesion implementa y un revisor Opus con contexto limpio aprueba; carril completo, Opus planifica, verifica y revisa y Sonnet implementa. Rutea la tarea a un playbook (investigacion, bug fix, feature, refactor, perf, prototipo) y aplica principios de ingenieria. Se usa solo cuando el usuario escribe /gas-mode:gas-mode.
 disable-model-invocation: true
 allowed-tools: Bash(git add:*), Bash(git commit:*), mcp__plugin_playwright_playwright
 hooks:
@@ -18,7 +18,7 @@ hooks:
 # Gas mode
 
 Adaptado de `poteto-mode` del plugin pstack (MIT, ver `LICENSE` en esta carpeta).
-Carpeta de la skill: `${CLAUDE_SKILL_DIR}`. Los playbooks estan en `playbooks/`, los principios en `principles/` y el flujo de delegacion en `references/sonnet-plan.md`.
+Carpeta de la skill: `${CLAUDE_SKILL_DIR}`. Los playbooks estan en `playbooks/`, los principios en `principles/`, el flujo de delegacion en `references/sonnet-plan.md` y las secciones que se leen solo cuando aplican en `references/`.
 Raiz del plugin: `${CLAUDE_PLUGIN_ROOT}`. Los playbooks la nombran como `<raiz del plugin>`.
 
 Al invocar este modo se activan dos hooks que siguen activos hasta el final de la sesion: `guard-bash.sh` bloquea comandos prohibidos (ver "Autonomia") y `guard-checks.sh` pide confirmacion antes de editar un check existente (ver "Los checks no se tocan"). Si un hook bloquea una accion, no buscar otra forma de hacerla: informar al usuario.
@@ -50,21 +50,55 @@ Excepcion: las autorizaciones de la seccion "Autonomia" (Playwright, Sonnet, com
 Si la tarea mezcla tipos (por ejemplo, un bug en un pipeline), elegir el playbook del dominio (Datos, IA / Eval, Deploy GCP) y aplicar los pasos de causa raiz de `playbooks/bug-fix.md` dentro de el.
 
 3. Si la tarea va a modificar archivos, comparar la rama actual (`git branch --show-current`) con la rama por defecto (`git symbolic-ref --short refs/remotes/origin/HEAD`, sin el prefijo `origin/`). Si son iguales, proponer crear una rama `gas/<slug-de-la-tarea>` con `git switch -c` antes de implementar y esperar el OK. `git switch -c` conserva los cambios sin commitear. Las tareas de solo lectura no necesitan rama.
-4. Leer el playbook completo y copiar sus pasos a la lista de tareas (la herramienta de todo/tareas disponible en la sesion).
-5. Si ningun playbook encaja, o la tarea es grande y toca varios modulos: decirlo, proponer como dividirla en partes que si encajen y esperar confirmacion.
-6. Si la tarea es chica (uno o dos archivos, sin diseno que cruce modulos y sin investigacion de causa raiz), el plan y la delegacion cuestan mas que el cambio. Decirlo en una linea y preguntar si sigue en este modo o se hace directo, sin plan ni subagente.
+4. Elegir el carril (ver "Carriles") y decirlo en una linea con el motivo. El usuario puede pedir el otro.
 
-## Roles
+| Tarea | Carril |
+|---|---|
+| Chica: uno o dos archivos, sin diseno ni investigacion de causa raiz | Ninguno. Decirlo en una linea y preguntar si se hace directo, fuera de este modo |
+| Mediana: pocos archivos de un mismo modulo o area, sin diseno que cruce limites entre modulos | Mediano |
+| Grande: cruza modulos, necesita "Boceto de arquitectura", o es de riesgo alto (concurrencia, escrituras de datos, auth, pagos, migraciones de API) | Completo |
+
+5. Leer el playbook completo y copiar sus pasos a la lista de tareas (la herramienta de todo/tareas disponible en la sesion).
+6. Si ningun playbook encaja, o la tarea es tan grande que no entra en un carril completo: decirlo, proponer como dividirla en partes que si encajen y esperar confirmacion.
+
+## Carriles
+
+En los dos carriles quien escribe el codigo no es quien lo aprueba, y en los dos rigen los hooks, "Los checks no se tocan", "Verificacion" y "Commits". Cambia quien implementa y cuanto proceso hay alrededor.
+
+- **Explore (subagente):** en cualquier carril, para busquedas amplias en el codebase cuando solo hace falta la conclusion (principio guard-the-context-window).
+
+### Carril mediano
+
+Esta sesion implementa porque ya tiene el contexto, y un subagente Opus con contexto limpio revisa. Evita el plan autosuficiente y que otro agente vuelva a leer el codebase.
+
+Si esta sesion corre en Opus, decirlo una vez al empezar: el carril funciona igual, pero para tareas medianas es mas barato correr la sesion en Sonnet (`/model sonnet`).
+
+Los playbooks estan escritos para el carril completo. En este carril: "Opus" es esta sesion; "Escribir el plan (plan-simple)" es el plan en la lista de tareas; "Delegar a Sonnet" es implementar en esta sesion.
+
+1. **Plan:** entre 3 y 10 pasos en la lista de tareas, cada uno con como verificarlo. Sin archivo en `Docs/`.
+2. **Implementar** en esta sesion, respetando "Los checks no se tocan".
+3. **Verificar** segun "Verificacion".
+4. **Revisar con contexto limpio.** Anotar el commit base antes de implementar (`git rev-parse HEAD`). Lanzar la herramienta `Agent` con `subagent_type: general-purpose` y `model: opus`. El prompt lleva:
+   - el pedido del usuario reformulado y el cambio mas chico que lo cumple;
+   - la salida de la verificacion (comandos y resultados);
+   - la instruccion de leer el diff con `git diff <commit base>` y los archivos que necesite, sin editar nada ni correr comandos que escriban;
+   - que busque bugs, casos sin cubrir, desvios del pedido y checks debilitados (la lista de "Los checks no se tocan");
+   - que devuelva cada hallazgo con `archivo:linea`, el escenario que falla y su gravedad, o "sin hallazgos".
+5. **Una ronda de correccion.** Confirmar cada hallazgo (reproducirlo o leer el codigo) y descartar con motivo los que no se confirman. Corregir los confirmados en esta sesion y volver a verificar. Si las correcciones cambiaron logica, lanzar una segunda revision igual a la primera. Si la segunda vuelve con bugs confirmados, frenar: la tarea no era mediana. Informar al usuario y proponer seguir en el carril completo.
+6. **Commit** segun "Commits".
+
+### Carril completo
 
 - **Opus (esta sesion):** investiga, reproduce, decide el diseno, escribe el plan, verifica y revisa.
 - **Sonnet (subagente):** escribe el codigo.
-- **Explore (subagente):** busquedas amplias en el codebase cuando solo hace falta la conclusion (principio guard-the-context-window).
 
-La separacion que importa es de contexto: quien escribe el codigo (el subagente) no es quien lo aprueba (esta sesion). Si esta sesion no corre en Opus, decirlo en una linea al empezar; el flujo no cambia, pero la revision pierde la ventaja de un modelo mas fuerte que el que implementa.
+Si esta sesion no corre en Opus, decirlo en una linea al empezar; el flujo no cambia, pero la revision pierde la ventaja de un modelo mas fuerte que el que implementa.
 
 Opus edita codigo directamente solo si se cumple todo esto: un archivo, unas 10 lineas o menos, sin logica nueva (typo, rename local, valor de config, import). Tambien puede agregar instrumentacion temporal (logs) para reproducir un bug; se quita antes de terminar. Cualquier otro cambio va a Sonnet, incluidos los fixes que salen de la revision.
 
-## Delegacion a Sonnet
+### Delegacion a Sonnet
+
+Solo en el carril completo.
 
 1. Escribir el plan siguiendo `${CLAUDE_PLUGIN_ROOT}/commands/plan-simple.md`, Pasos 1 a 5 (archivo en `Docs/` del proyecto). Las secciones del plan que no apliquen se omiten.
 2. Seguir `references/sonnet-plan.md` desde el Paso 3 en adelante: lanzar, verificar, lazo de correccion (maximo 2 iteraciones, por `SendMessage` al mismo subagente), revisar y preguntar por la limpieza del plan.
@@ -74,7 +108,7 @@ Opus edita codigo directamente solo si se cumple todo esto: un archivo, unas 10 
 
 ## Los checks no se tocan
 
-Un cambio no puede modificar los checks que lo juzgan. Aplica a Sonnet y a Opus.
+Un cambio no puede modificar los checks que lo juzgan. Aplica a quien implemente, en cualquier carril.
 
 **Checks:** tests existentes (incluidos snapshots y fixtures), configuracion de lint, typecheck y formateo (`.eslintrc*`, `eslint.config.*`, `tsconfig*.json`, `pyproject.toml` en sus secciones de lint y tests, `.sqlfluff`, etc.), la skill `.claude/skills/verify-*/` y `.github/workflows/*`.
 
@@ -85,7 +119,7 @@ Un cambio no puede modificar los checks que lo juzgan. Aplica a Sonnet y a Opus.
 > - Si un check falla y crees que el check esta mal, no lo cambies: frena y reportalo con el motivo.
 > - Agregar tests nuevos si esta permitido.
 
-**En la revision (Opus):**
+**En la revision (esta sesion, antes de commitear, en cualquier carril):**
 
 1. Listar los archivos de checks que cambio el diff: `git diff --name-only` filtrado por esas rutas, mas `git diff -U0` buscando `skip`, `xfail`, `only`, `eslint-disable`, `noqa`, `type: ignore`, `@ts-ignore`, `@ts-expect-error` y `any` agregados.
 2. Cada cambio a un check que el plan no pedia con su motivo es un rechazo: vuelve a Sonnet para revertirlo y arreglar el codigo, no el check.
@@ -105,7 +139,7 @@ Se hace antes de escribir el plan cuando el cambio cruza un limite entre funcion
 
 ## Principios
 
-Antes de aplicar un principio, leer su archivo completo en `principles/<nombre>.md`. En la respuesta final, nombrar cada principio que cambio una decision y que decision cambio.
+El resumen de una linea alcanza para aplicar un principio. Leer el archivo completo en `principles/<nombre>.md` solo cuando el principio decide algo discutible o la tarea se trabo. En la respuesta final, nombrar un principio solo si cambio una decision, y que decision cambio.
 
 **Base**
 - `laziness-protocol`: al dimensionar un diff o ante la tentacion de agregar capas o abstracciones. Preferir borrar y el cambio mas chico que resuelve.
@@ -141,11 +175,11 @@ Antes de aplicar un principio, leer su archivo completo en `principles/<nombre>.
 
 **Sin preguntar:**
 - Leer y buscar; correr comandos de solo lectura, tests, typecheck, lint y build.
-- Escribir el plan en `Docs/`; ediciones triviales (ver Roles); prototipos en un directorio scratch.
-- Lanzar subagentes Sonnet para implementar o prototipar.
+- Escribir el plan (en la lista de tareas o en `Docs/`, segun el carril); implementar en el carril mediano; ediciones triviales en el carril completo (ver "Carril completo"); prototipos en un directorio scratch.
+- Lanzar subagentes Sonnet para implementar o prototipar, y el subagente revisor del carril mediano.
 - Usar Playwright para reproducir y verificar (ver "Browser").
 - `git add` y `git commit` despues de verificar (ver "Commits").
-- Imponer una correccion del usuario con un cambio chico dentro del repo (ver "Correcciones").
+- Imponer una correccion del usuario con un cambio chico dentro del repo (ver "Correcciones" y `references/correcciones.md`).
 
 **Confirmar antes:**
 - Crear la rama de trabajo (ver "Al empezar").
@@ -199,67 +233,15 @@ Si el usuario pide una opinion o un visto bueno, dar el juicio real. "No convien
 
 ## Workflows de GitHub Actions
 
-Aplica en cualquier playbook, no solo en CI/CD.
-
-- **La tarea modifica `.github/workflows/*`:** antes de commitear, revisar los workflows modificados siguiendo `${CLAUDE_PLUGIN_ROOT}/skills/github-actions-hardening/SKILL.md` (leerla por ruta) y aplicar a las lineas tocadas los patrones de eficiencia de `playbooks/ci-cd.md` (`concurrency` con `cancel-in-progress`, cache de dependencias, `timeout-minutes`, path filters). Los hallazgos de seguridad se corrigen dentro de la tarea.
-- **La tarea no los modifica:** no crear ni cambiar workflows por iniciativa propia. Si al leerlos aparece algo, proponerlo en una linea al final de la respuesta, sin tocarlo:
-  - Riesgo de seguridad (`pull_request_target` que ejecuta codigo de forks, actions de terceros sin pinear a SHA, `permissions` amplios o ausentes, secretos interpolados en `run:`): reportarlo siempre.
-  - Desperdicio evidente (sin `concurrency`, sin cache, sin `timeout-minutes`, Windows o macOS sin necesidad): mencionarlo una sola vez por conversacion, con una estimacion.
-  - Se agregaron tests o typecheck y el repo no tiene CI: proponer un workflow minimo.
-- Si el usuario ya rechazo una propuesta en la conversacion, no repetirla. Si el CLAUDE.md del proyecto dice que no se propongan cambios de CI, respetarlo.
+Si la tarea modifica `.github/workflows/*`, o si se leyeron workflows durante la tarea, seguir `references/github-actions.md`.
 
 ## Correcciones
 
-Cada correccion del usuario termina, antes de cerrar la tarea, en algo que la impone. Version en el momento de `/gas-mode:correct` (que hace lo mismo sobre todo el historial).
-
-**Que cuenta como correccion:** una regla explicita del usuario ("siempre / nunca hace X", "asi no se hace X"). No cuenta una preferencia sobre la tarea actual ("prefiero el boton a la derecha").
-
-**Senales indirectas:** si el usuario deshace algo que hizo el agente o senala un error que podria repetirse, sin enunciar una regla, arreglar la instancia y preguntar en una linea si quiere una regla, nombrando el mecanismo propuesto (por ejemplo: "¿Lo convierto en regla con un test que falle si vuelve a pasar?"). Los pasos 2 a 7 se aplican solo si dice que si.
-
-**Pasos, en el mismo turno:**
-
-1. Arreglar la instancia.
-2. Leer la tabla de reglas del CLAUDE.md del proyecto (resolver la ruta real con `readlink -f CLAUDE.md`). Si la regla no esta, es nueva. Si esta y su estado no es "impuesta", es una repeticion: hay que subirla de nivel.
-3. Elegir el nivel mas alto que funcione, en este orden:
-   1. Arquitectura: el error se vuelve imposible (un solo dueno del estado, una sola manera soportada, ocultar internals, opciones de plataforma como `require_partition_filter`).
-   2. Tipos o lint: el codigo incorrecto no compila o falla un check, con un mensaje de error que nombra el arreglo.
-   3. Test: falla cuando el error aparece.
-   4. Documentacion: solo para decisiones de criterio; nada falla si se ignora.
-4. Implementar segun la tabla de permisos de abajo.
-5. Probar el mecanismo contra el error real: reproducirlo en un archivo temporal nuevo, confirmar que el check falla con el mensaje esperado y borrar el archivo. Un check que nunca se vio fallar no cuenta.
-6. Actualizar la tabla de reglas.
-7. Commit propio, separado del de la tarea (asunto con prefijo `correct:`), segun "Commits". La fila nueva en `## Reglas impuestas` cambia las reglas de todo el equipo: llega a la rama por defecto solo a traves de un PR. Al cerrar la tarea, proponer abrirlo con `gh pr create` (accion externa: confirmar antes) y nombrar en el cuerpo cada regla agregada.
-
-**Permisos:**
-
-| Sin preguntar (se implementa ya) | Preparar y preguntar |
-|---|---|
-| Regla de lint con una dependencia que el repo ya tiene | Instalar una dependencia nueva (plugin de lint, `sqlfluff`) |
-| Test nuevo, incluido un test de `--dry_run` sobre queries | Cambios de esquema u opciones en una base (los ejecuta el usuario) |
-| Tipos mas estrictos o cambio de arquitectura chico dentro del repo | Cambios en workflows de CI (requieren push) |
-| La fila en la tabla de reglas | Configuracion de la org, de cloud o de recursos compartidos |
-| | Crear el CLAUDE.md del proyecto si no existe |
-
-**Si el mejor nivel necesita permiso:**
-
-1. Implementar ya el mejor nivel que no lo necesita, para que la regla quede impuesta aunque el usuario diga que no o no conteste.
-2. Preguntar con una sola pregunta de si o no que muestre el cambio exacto (diff o comando), que error vuelve imposible y su riesgo. Para cambios sobre datos o configuracion compartida, verificar antes en solo lectura que nada existente se rompe (por ejemplo, que ningun job ni dashboard consulta la tabla sin filtro).
-3. Si dice que si: implementarlo y probarlo en el momento. Si lo tiene que ejecutar el usuario, darle el comando y, cuando confirma, verificar en solo lectura que el error ya no se puede cometer. Borrar el nivel bajo si quedo redundante, o dejarlo como red.
-4. Si dice que no: anotar "nivel N rechazado" en la tabla y no volver a proponerlo.
-
-**Limite de tamano:** se implementa en el momento solo un cambio chico (una regla de lint, un test, un cambio de tipos local; 1 o 2 archivos). Si el nivel correcto exige un refactor mayor, implementar ahora el nivel mas bajo y proponer el refactor como tarea aparte (`/gas-mode:correct` u otro `/gas-mode:gas-mode`).
-
-**Tabla de reglas** (en el CLAUDE.md del proyecto, seccion `## Reglas impuestas`):
-
-| Regla | Lo impone | Nivel | Estado |
-|---|---|---|---|
-| Queries sobre `analytics.events` filtran por `event_date` | `tests/test_queries_dry_run.py` | Test | Impuesta; nivel 1 (`require_partition_filter`) pendiente de aprobacion |
-
-Estados: "impuesta", "solo documentacion", "nivel N pendiente de aprobacion", "nivel N rechazado". Borrar la fila cuando el error ya no puede ocurrir por arquitectura.
+Si el usuario da una regla explicita ("siempre / nunca hace X", "asi no se hace X"), deshace algo que hizo el agente o senala un error que podria repetirse: arreglar la instancia y seguir `references/correcciones.md`. Una preferencia sobre la tarea actual ("prefiero el boton a la derecha") no es una correccion.
 
 ## Revision adversarial
 
-Para cambios con diseno discutible o riesgo alto (concurrencia, datos, auth, pagos, migraciones de API), despues de verificar y antes de commitear, seguir `${CLAUDE_PLUGIN_ROOT}/skills/interrogate/SKILL.md` (leerla por ruta, no invocarla). Los hallazgos verificados vuelven a Sonnet y cuentan dentro del lazo de correccion (maximo 2 iteraciones en total).
+Solo en el carril completo. Para cambios con diseno discutible o riesgo alto (concurrencia, datos, auth, pagos, migraciones de API), despues de verificar y antes de commitear, seguir `${CLAUDE_PLUGIN_ROOT}/skills/interrogate/SKILL.md` (leerla por ruta, no invocarla). Los hallazgos verificados vuelven a Sonnet y cuentan dentro del lazo de correccion (maximo 2 iteraciones en total).
 
 ## Respuesta final
 
@@ -269,4 +251,4 @@ Antes de cerrar, repasar la tarea con el principio `proponer-determinismo`. Si a
 
 Si hubo correcciones, listar al final cada regla con su mecanismo, su estado en la tabla y el commit `correct:`.
 
-Si la tarea fue larga, terminar con una linea sugiriendo `/gas-mode:reflect` para lo que no es imponible (como trabajar, que skill deberia haberse usado). Si el repo nunca paso por `/gas-mode:correct`, sugerirlo una vez para revisar el historial completo.
+En el carril mediano, no sugerir `/gas-mode:reflect` ni `/gas-mode:correct`. En el carril completo, si la tarea fue larga, terminar con una linea sugiriendo `/gas-mode:reflect` para lo que no es imponible (como trabajar, que skill deberia haberse usado). Si el repo nunca paso por `/gas-mode:correct`, sugerirlo una vez para revisar el historial completo.

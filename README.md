@@ -13,7 +13,7 @@
 
 # gas-mode
 
-Skill orquestadora para Claude Code. Opus planifica, verifica y revisa; Sonnet implementa en un subagente. Entre cada etapa hay un gate de verificación, y cada commit registra qué se verificó.
+Skill orquestadora para Claude Code. Quien implementa nunca es quien aprueba: según el tamaño de la tarea, implementa la sesión y revisa un subagente Opus, o planifica Opus e implementa un subagente Sonnet. Entre cada etapa hay un gate de verificación, y cada commit registra qué se verificó.
 
 ```text
 /gas-mode el job diario de ventas duplica filas cuando se reintenta
@@ -32,11 +32,29 @@ Un agente que implementa y se autoevalúa en el mismo contexto tiende a:
 
 ## Cuándo usarlo
 
-`gas-mode` está pensado para tareas medianas o largas: features completas, bugs que requieren investigar la causa, refactors, cambios en pipelines y diagnósticos de deploy. En esos casos, el costo de planificar, delegar y verificar se compensa con menos retrabajo.
+`gas-mode` está pensado para tareas medianas o grandes: features, bugs que requieren investigar la causa, refactors, cambios en pipelines y diagnósticos de deploy.
 
-Para cambios chicos (un typo, un valor de config, un ajuste de pocas líneas), no uses el comando. Pedile el cambio a Claude Code directamente.
+Para cambios chicos (un typo, un valor de config, un ajuste de pocas líneas), no uses el comando. Pedile el cambio a Claude Code directamente. Si invocás `gas-mode` con una tarea chica, te lo dice y pregunta si conviene hacerla directo.
 
-## Flujo
+## Carriles
+
+Al empezar, `gas-mode` mide la tarea y elige uno de dos carriles. Te dice cuál eligió y por qué; si preferís el otro, pedilo.
+
+| | Carril mediano | Carril completo |
+|---|---|---|
+| Cuándo | Pocos archivos de un mismo módulo o área, sin diseño que cruce módulos. | Cruza módulos, necesita diseñar firmas entre ellos, o es de riesgo alto (concurrencia, escrituras de datos, auth, pagos, migraciones de API). |
+| Quién implementa | La sesión principal, que ya leyó el código. | Un subagente Sonnet, a partir de un plan escrito. |
+| Quién revisa | Un subagente Opus que no participó: lee el pedido, el diff y la verificación. | Opus, en la sesión principal. |
+| Plan | Lista de pasos en la sesión. | Archivo en `Docs/` con tareas, firmas y verificación por tarea. |
+| Correcciones | Una ronda. Si el revisor encuentra bugs dos veces, la tarea pasa al carril completo. | Hasta 2 iteraciones de Sonnet. |
+
+Por qué hay dos: en una tarea mediana, escribir un plan para que otro agente vuelva a leer el código cuesta más que el cambio. El carril mediano evita ese traspaso, pero mantiene lo importante: quien aprueba no es quien implementó, y nada se commitea sin verificar.
+
+Para el carril mediano conviene correr la sesión en Sonnet (`/model sonnet`): implementa el modelo más barato y revisa el más fuerte. Si la sesión corre en Opus, funciona igual pero cuesta más.
+
+En los dos carriles rigen los hooks, los checks inmutables y la línea `Verificado:` en el commit.
+
+### Flujo del carril completo
 
 | Etapa | Rol | Output |
 |---|---|---|
@@ -187,7 +205,7 @@ Un archivo por principio en [`principles/`](./skills/gas-mode/principles/). Se l
 | Sin confirmación | Con confirmación | Nunca |
 |---|---|---|
 | Lectura, tests, typecheck, lint, build | `git push` | `merge`, `rebase`, `push --force` |
-| Plan y subagentes Sonnet | Slack, Jira, mail, comentarios en PRs | `reset`, `restore`, `clean` |
+| Plan, subagentes Sonnet y revisor Opus | Slack, Jira, mail, comentarios en PRs | `reset`, `restore`, `clean` |
 | Playwright | Dependencias nuevas, recursos de cloud | Escrituras en bases de datos |
 | `git commit` tras verificar, fuera de la rama por defecto | Costo sobre umbral | |
 | | Crear la rama de trabajo | |
