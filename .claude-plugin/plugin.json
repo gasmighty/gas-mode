@@ -1,0 +1,9 @@
+{
+  "name": "gas-mode",
+  "version": "0.2.0",
+  "description": "Modo de trabajo riguroso para Claude Code: Opus planifica, verifica y revisa; Sonnet implementa. Playbooks de software, datos, IA y deploy en GCP.",
+  "author": { "name": "gasmighty" },
+  "repository": "https://github.com/gasmighty/gas-mode",
+  "license": "MIT",
+  "keywords": ["workflow", "verification", "data-engineering"]
+}

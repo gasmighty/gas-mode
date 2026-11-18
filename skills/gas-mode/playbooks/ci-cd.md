@@ -2,18 +2,18 @@
 
 Crear o modificar workflows de GitHub Actions, o mejorar un CI lento o caro. Cada cambio se justifica con una medicion y se vuelve a medir despues. Principios: explain-the-number, prove-it-works, make-operations-idempotent, sequence-verifiable-units.
 
-Skills de apoyo (leerlas por ruta si existen; si no estan, seguir con los pasos de este playbook):
+Skills de apoyo, incluidas en el plugin (leerlas por ruta; `<raiz del plugin>` esta definida en SKILL.md):
 
-- Costo y velocidad: `~/.claude/skills/optimise-github-actions/SKILL.md` y su script `scripts/measure.mjs`.
-- Seguridad: `~/.claude/skills/github-actions-hardening/SKILL.md`.
+- Costo y velocidad: `<raiz del plugin>/skills/github-actions-cost/SKILL.md` y su script `scripts/measure.mjs`.
+- Seguridad: `<raiz del plugin>/skills/github-actions-hardening/SKILL.md`.
 
 1. Medir antes de cambiar (solo lectura). Si el repo ya tiene corridas:
 
    ```bash
-   node ~/.claude/skills/optimise-github-actions/scripts/measure.mjs OWNER/REPO --days 14 --out <scratch>/jobs.json
+   node <raiz del plugin>/skills/github-actions-cost/scripts/measure.mjs OWNER/REPO --days 14 --out <scratch>/jobs.json
    ```
 
-   Devuelve minutos facturados por workflow y por job, desperdicio por redondeo y cancelaciones, p50 y p90 de duracion y corridas por PR. En un repo publico los runners estandar son gratis: leer los minutos como tiempo, no como costo. Si el repo no tiene CI todavia, saltear este paso.
+   Devuelve minutos facturados por workflow y por job, minutos perdidos por redondeo y por corridas canceladas, p50 y p90 de duracion y corridas por PR. En un repo publico los runners estandar son gratis: leer los minutos como tiempo, no como costo. Si el repo no tiene CI todavia, saltear este paso.
 2. Entender que protege cada job antes de proponer: triggers, `concurrency`, path filters, grafo de `needs:`, checks requeridos (`gh api repos/OWNER/REPO/rulesets` y `gh api repos/OWNER/REPO/branches/<rama>/protection`), tests que leen los archivos de workflow y que usa el deploy (imagenes, artefactos, estado "CI passed"). Renombrar o sacar un check requerido bloquea todos los merges.
 3. Proponer una tabla: cambio, minutos ahorrados, tiempo ahorrado y riesgo. Decir para que lado mueve cada cambio: paralelizar baja el tiempo de espera y sube los minutos facturados; unir jobs chicos hace lo contrario. Esperar que el usuario elija.
 4. Escribir el plan (plan-simple) con los cambios elegidos, uno por tarea. Delegar a Sonnet segun "Delegacion a Sonnet". Cada cambio no obvio lleva un comentario en el YAML que explica por que (excepcion permitida a la regla de no comentar: es una restriccion que el codigo no puede expresar).

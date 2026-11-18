@@ -1,6 +1,6 @@
 ---
 name: create-verification-skill
-description: Genera una skill de verificacion local del proyecto (.claude/skills/verify-<app>/) que levanta la app, la maneja como un usuario y captura evidencia, con un mapa de features. Usar cuando el usuario escribe /create-verification-skill, o cuando /gas-mode lo propone porque el proyecto no tiene una forma scripteada de probar comportamiento.
+description: Genera una skill de verificacion local del proyecto (.claude/skills/verify-<app>/) que levanta la app, la maneja como un usuario y captura evidencia, con un mapa de features. Usar cuando el usuario escribe /gas-mode:create-verification-skill, o cuando /gas-mode:gas-mode lo propone porque el proyecto no tiene una forma scripteada de probar comportamiento.
 disable-model-invocation: true
 ---
 
@@ -15,7 +15,7 @@ Todo proyecto serio necesita una forma scripteada de manejar la app real y proba
 - **Bases de datos:** nunca correr migraciones, seeds ni escrituras de datos. Si un journey necesita datos que no existen, el journey falla y el motivo va en los `Gotchas` de esa feature. Nunca debilitar el journey para que pase.
 - **Backend real:** el Doctor tiene que informar contra que backend apunta la instancia (leyendo los nombres de las variables de entorno, nunca imprimiendo secretos). Los journeys que crean, editan o borran datos se marcan como **mutacion** y requieren confirmacion del usuario, salvo que el backend sea un emulador o una base descartable confirmada.
 - **Puertos:** usar el servidor de desarrollo en su puerto por defecto. Si ya esta corriendo, reutilizarlo. Si no, levantarlo en ese puerto. Nunca levantar una segunda instancia en otro puerto sin preguntar.
-- **Browser:** el paso 4 maneja un browser. Fuera de `/gas-mode`, preguntar antes. Dentro de `/gas-mode`, Playwright esta autorizado.
+- **Browser:** el paso 4 maneja un browser. Fuera de `/gas-mode:gas-mode`, preguntar antes. Dentro de `/gas-mode:gas-mode`, Playwright esta autorizado.
 - **Dependencias:** no instalar nada sin preguntar.
 - **Evidencia:** screenshots, snapshots y logs van a un directorio incluido en el `.gitignore` del proyecto. Si no lo esta, agregarlo antes de generar archivos.
 - **Sin READMEs en subcarpetas:** el indice del mapa de features se llama `index.md`.
@@ -56,8 +56,8 @@ Ejecutar sus propias instrucciones de punta a punta una vez: Launch, Doctor, man
 
 ## 5. Entregar
 
-Informar la ruta de la skill, las features mapeadas, que journey se probo y con que evidencia, y que journeys son de mutacion. No commitear salvo segun las reglas de `/gas-mode` o cuando el usuario lo pida.
+Informar la ruta de la skill, las features mapeadas, que journey se probo y con que evidencia, y que journeys son de mutacion. No commitear salvo segun las reglas de `/gas-mode:gas-mode` o cuando el usuario lo pida.
 
 ## Mantenimiento
 
-Cuando `/gas-mode` verifica una feature que el mapa no lista, o encuentra que un journey del mapa ya no coincide con la app, propone agregar o corregir el archivo de esa feature.
+Cuando `/gas-mode:gas-mode` verifica una feature que el mapa no lista, o encuentra que un journey del mapa ya no coincide con la app, propone agregar o corregir el archivo de esa feature.

@@ -1,14 +1,27 @@
 ---
 name: gas-mode
-description: Modo de trabajo riguroso para tareas de codigo. Opus investiga, planifica, verifica y revisa; Sonnet implementa. Rutea la tarea a un playbook (investigacion, bug fix, feature, refactor, perf, prototipo) y aplica principios de ingenieria. Se usa solo cuando el usuario escribe /gas-mode.
+description: Modo de trabajo riguroso para tareas de codigo. Opus investiga, planifica, verifica y revisa; Sonnet implementa. Rutea la tarea a un playbook (investigacion, bug fix, feature, refactor, perf, prototipo) y aplica principios de ingenieria. Se usa solo cuando el usuario escribe /gas-mode:gas-mode.
 disable-model-invocation: true
 allowed-tools: Bash(git add:*), Bash(git commit:*), mcp__plugin_playwright_playwright
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: '"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/guard-bash.sh"'
+    - matcher: "Edit|Write"
+      hooks:
+        - type: command
+          command: '"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/guard-checks.sh"'
 ---
 
 # Gas mode
 
 Adaptado de `poteto-mode` del plugin pstack (MIT, ver `LICENSE` en esta carpeta).
-Carpeta de la skill: `~/.claude/skills/gas-mode/`. Los playbooks estan en `playbooks/` y los principios en `principles/`.
+Carpeta de la skill: `${CLAUDE_SKILL_DIR}`. Los playbooks estan en `playbooks/`, los principios en `principles/` y el flujo de delegacion en `references/sonnet-plan.md`.
+Raiz del plugin: `${CLAUDE_PLUGIN_ROOT}`. Los playbooks la nombran como `<raiz del plugin>`.
+
+Al invocar este modo se activan dos hooks que siguen activos hasta el final de la sesion: `guard-bash.sh` bloquea comandos prohibidos (ver "Autonomia") y `guard-checks.sh` pide confirmacion antes de editar un check existente (ver "Los checks no se tocan"). Si un hook bloquea una accion, no buscar otra forma de hacerla: informar al usuario.
 
 ## Precedencia
 
@@ -36,8 +49,9 @@ Excepcion: las autorizaciones de la seccion "Autonomia" (Playwright, Sonnet, com
 
 Si la tarea mezcla tipos (por ejemplo, un bug en un pipeline), elegir el playbook del dominio (Datos, IA / Eval, Deploy GCP) y aplicar los pasos de causa raiz de `playbooks/bug-fix.md` dentro de el.
 
-3. Leer el playbook completo y copiar sus pasos a la lista de tareas (la herramienta de todo/tareas disponible en la sesion).
-4. Si ningun playbook encaja, o la tarea es grande y toca varios modulos: decirlo, proponer como dividirla en partes que si encajen y esperar confirmacion.
+3. Si la tarea va a modificar archivos, comparar la rama actual (`git branch --show-current`) con la rama por defecto (`git symbolic-ref --short refs/remotes/origin/HEAD`, sin el prefijo `origin/`). Si son iguales, proponer crear una rama `gas/<slug-de-la-tarea>` con `git switch -c` antes de implementar y esperar el OK. `git switch -c` conserva los cambios sin commitear. Las tareas de solo lectura no necesitan rama.
+4. Leer el playbook completo y copiar sus pasos a la lista de tareas (la herramienta de todo/tareas disponible en la sesion).
+5. Si ningun playbook encaja, o la tarea es grande y toca varios modulos: decirlo, proponer como dividirla en partes que si encajen y esperar confirmacion.
 
 ## Roles
 
@@ -49,11 +63,11 @@ Opus edita codigo directamente solo si se cumple todo esto: un archivo, unas 10 
 
 ## Delegacion a Sonnet
 
-1. Escribir el plan siguiendo `~/.claude/commands/plan-simple.md`, Pasos 1 a 5 (archivo en `Docs/` del proyecto). Las secciones del plan que no apliquen se omiten.
-2. Seguir `~/.claude/shared/plan-delegar.md` con `EJECUTOR = sonnet` desde el Paso 3 en adelante: lanzar, verificar, lazo de correccion (maximo 2 iteraciones, por `SendMessage` al mismo subagente), revisar y preguntar por la limpieza del plan.
-3. Los Pasos 1, 2 y 2.5 de plan-delegar no se usan: el plan ya lo escribio plan-simple, y en este modo no hace falta confirmar antes de lanzar a Sonnet. Antes de lanzarlo, mostrar en una linea la ruta del plan y la cantidad de tareas, y seguir sin esperar.
-4. Sonnet no hace commits (lo prohibe el prompt de plan-delegar). Los commits los hace Opus despues de verificar (ver "Commits").
-5. Agregar al final del prompt base de plan-delegar las reglas de "Los checks no se tocan" (abajo), copiadas tal cual.
+1. Escribir el plan siguiendo `${CLAUDE_PLUGIN_ROOT}/commands/plan-simple.md`, Pasos 1 a 5 (archivo en `Docs/` del proyecto). Las secciones del plan que no apliquen se omiten.
+2. Seguir `references/sonnet-plan.md` desde el Paso 3 en adelante: lanzar, verificar, lazo de correccion (maximo 2 iteraciones, por `SendMessage` al mismo subagente), revisar y preguntar por la limpieza del plan.
+3. Los Pasos 1, 2 y 2.5 de `references/sonnet-plan.md` no se usan: el plan ya lo escribio plan-simple, y en este modo no hace falta confirmar antes de lanzar a Sonnet. Antes de lanzarlo, mostrar en una linea la ruta del plan y la cantidad de tareas, y seguir sin esperar.
+4. Sonnet no hace commits (lo prohibe el prompt de `references/sonnet-plan.md`). Los commits los hace Opus despues de verificar (ver "Commits").
+5. Agregar al final del prompt base de `references/sonnet-plan.md` las reglas de "Los checks no se tocan" (abajo), copiadas tal cual.
 
 ## Los checks no se tocan
 
@@ -131,6 +145,7 @@ Antes de aplicar un principio, leer su archivo completo en `principles/<nombre>.
 - Imponer una correccion del usuario con un cambio chico dentro del repo (ver "Correcciones").
 
 **Confirmar antes:**
+- Crear la rama de trabajo (ver "Al empezar").
 - `git push`: preguntar siempre, indicando rama, remoto, commits que salen y si esa rama dispara un deploy. Esperar el OK explicito.
 - Cualquier mensaje o accion externa: Slack, Jira, mail, comentarios en PRs.
 - Usar un browser distinto de Playwright (Chrome DevTools u otro).
@@ -159,7 +174,7 @@ Debajo del umbral, avanzar e informar el costo en la respuesta. Por encima, preg
 
 - Commitear cuando la tarea (o cada tarea del plan) esta verificada y revisada. Nunca commitear codigo que falla typecheck, lint o tests.
 - Antes de commitear, correr `git status` y listar en la respuesta que archivos entran. No incluir archivos ajenos a la tarea, `.env`, secretos ni outputs de Playwright.
-- En la rama actual. No crear ni cambiar de rama sin preguntar.
+- Nunca en la rama por defecto (lo bloquea `guard-bash.sh`). En la rama de trabajo creada al empezar. No cambiar a otra rama existente sin preguntar.
 - Mensaje con asunto y cuerpo, sin trailers de atribucion a Claude, Cursor ni otros agentes.
 - El cuerpo termina con una linea de verificacion que dice que se corrio y con que resultado, sin adornos. Ejemplos:
   - `Verificado: typecheck OK, lint OK, 42 tests OK, journey checkout con Playwright OK.`
@@ -174,7 +189,7 @@ Si el usuario pide una opinion o un visto bueno, dar el juicio real. "No convien
 
 - Verificar contra el comportamiento real (principio prove-it-works). Un resultado "no concluyente" o medido en otro lugar no cuenta como OK; decirlo.
 - Si el proyecto tiene `.claude/skills/verify-*/`, leer su `SKILL.md` y el archivo de la feature en `features/`, y verificar con esa receta. Si la feature no esta en el mapa, o el journey ya no coincide con la app, proponer al final agregarlo o corregirlo.
-- Si no existe y la tarea necesita verificar comportamiento de la app, proponer una vez crearla siguiendo `~/.claude/skills/create-verification-skill/SKILL.md` (leerla por ruta, no invocarla). Si el usuario no quiere, seguir con Playwright directo.
+- Si no existe y la tarea necesita verificar comportamiento de la app, proponer una vez crearla siguiendo `${CLAUDE_PLUGIN_ROOT}/skills/create-verification-skill/SKILL.md` (leerla por ruta, no invocarla). Si el usuario no quiere, seguir con Playwright directo.
 - Para UI: verificar con Playwright (ver "Browser") y adjuntar la evidencia (screenshot o asercion). Si Playwright no puede llegar al caso, darle al usuario pasos concretos para verificarlo.
 - No pedirle al usuario un chequeo que se puede correr.
 - **Tests flaky:** prohibido saltearlos, agregar sleeps o esperas fijas, o reintentar hasta que pasen. Un test que a veces falla tiene una causa: buscarla con el playbook de bug fix (orden de ejecucion, estado compartido, tiempo, red, datos aleatorios sin seed). Si no se encuentra, proponerle al usuario borrar el test y documentar por que en el commit; no borrarlo sin confirmacion. Si el test flaky no es parte de la tarea, reportarlo en una linea y no tocarlo.
@@ -183,7 +198,7 @@ Si el usuario pide una opinion o un visto bueno, dar el juicio real. "No convien
 
 Aplica en cualquier playbook, no solo en CI/CD.
 
-- **La tarea modifica `.github/workflows/*`:** antes de commitear, revisar los workflows modificados siguiendo `~/.claude/skills/github-actions-hardening/SKILL.md` (leerla por ruta, si existe) y aplicar a las lineas tocadas los patrones de eficiencia de `playbooks/ci-cd.md` (`concurrency` con `cancel-in-progress`, cache de dependencias, `timeout-minutes`, path filters). Los hallazgos de seguridad se corrigen dentro de la tarea.
+- **La tarea modifica `.github/workflows/*`:** antes de commitear, revisar los workflows modificados siguiendo `${CLAUDE_PLUGIN_ROOT}/skills/github-actions-hardening/SKILL.md` (leerla por ruta) y aplicar a las lineas tocadas los patrones de eficiencia de `playbooks/ci-cd.md` (`concurrency` con `cancel-in-progress`, cache de dependencias, `timeout-minutes`, path filters). Los hallazgos de seguridad se corrigen dentro de la tarea.
 - **La tarea no los modifica:** no crear ni cambiar workflows por iniciativa propia. Si al leerlos aparece algo, proponerlo en una linea al final de la respuesta, sin tocarlo:
   - Riesgo de seguridad (`pull_request_target` que ejecuta codigo de forks, actions de terceros sin pinear a SHA, `permissions` amplios o ausentes, secretos interpolados en `run:`): reportarlo siempre.
   - Desperdicio evidente (sin `concurrency`, sin cache, sin `timeout-minutes`, Windows o macOS sin necesidad): mencionarlo una sola vez por conversacion, con una estimacion.
@@ -192,7 +207,7 @@ Aplica en cualquier playbook, no solo en CI/CD.
 
 ## Correcciones
 
-Cada correccion del usuario termina, antes de cerrar la tarea, en algo que la impone. Version en el momento de `/correct` (que hace lo mismo sobre todo el historial).
+Cada correccion del usuario termina, antes de cerrar la tarea, en algo que la impone. Version en el momento de `/gas-mode:correct` (que hace lo mismo sobre todo el historial).
 
 **Que cuenta como correccion:** "asi no", "siempre / nunca hace X", deshacer algo que hizo el agente o senalar un error que podria repetirse. No cuenta una preferencia sobre la tarea actual ("prefiero el boton a la derecha"). Si no esta claro, preguntar en una linea si quiere una regla.
 
@@ -208,7 +223,7 @@ Cada correccion del usuario termina, antes de cerrar la tarea, en algo que la im
 4. Implementar segun la tabla de permisos de abajo.
 5. Probar el mecanismo contra el error real: reproducirlo en un archivo temporal nuevo, confirmar que el check falla con el mensaje esperado y borrar el archivo. Un check que nunca se vio fallar no cuenta.
 6. Actualizar la tabla de reglas.
-7. Commit propio, separado del de la tarea (asunto con prefijo `correct:`), segun "Commits".
+7. Commit propio, separado del de la tarea (asunto con prefijo `correct:`), segun "Commits". La fila nueva en `## Reglas impuestas` cambia las reglas de todo el equipo: llega a la rama por defecto solo a traves de un PR. Al cerrar la tarea, proponer abrirlo con `gh pr create` (accion externa: confirmar antes) y nombrar en el cuerpo cada regla agregada.
 
 **Permisos:**
 
@@ -227,7 +242,7 @@ Cada correccion del usuario termina, antes de cerrar la tarea, en algo que la im
 3. Si dice que si: implementarlo y probarlo en el momento. Si lo tiene que ejecutar el usuario, darle el comando y, cuando confirma, verificar en solo lectura que el error ya no se puede cometer. Borrar el nivel bajo si quedo redundante, o dejarlo como red.
 4. Si dice que no: anotar "nivel N rechazado" en la tabla y no volver a proponerlo.
 
-**Limite de tamano:** se implementa en el momento solo un cambio chico (una regla de lint, un test, un cambio de tipos local; 1 o 2 archivos). Si el nivel correcto exige un refactor mayor, implementar ahora el nivel mas bajo y proponer el refactor como tarea aparte (`/correct` u otro `/gas-mode`).
+**Limite de tamano:** se implementa en el momento solo un cambio chico (una regla de lint, un test, un cambio de tipos local; 1 o 2 archivos). Si el nivel correcto exige un refactor mayor, implementar ahora el nivel mas bajo y proponer el refactor como tarea aparte (`/gas-mode:correct` u otro `/gas-mode:gas-mode`).
 
 **Tabla de reglas** (en el CLAUDE.md del proyecto, seccion `## Reglas impuestas`):
 
@@ -239,7 +254,7 @@ Estados: "impuesta", "solo documentacion", "nivel N pendiente de aprobacion", "n
 
 ## Revision adversarial
 
-Para cambios con diseno discutible o riesgo alto (concurrencia, datos, auth, pagos, migraciones de API), despues de verificar y antes de commitear, seguir `~/.claude/skills/interrogate/SKILL.md` (leerla por ruta, no invocarla). Los hallazgos verificados vuelven a Sonnet y cuentan dentro del lazo de correccion (maximo 2 iteraciones en total).
+Para cambios con diseno discutible o riesgo alto (concurrencia, datos, auth, pagos, migraciones de API), despues de verificar y antes de commitear, seguir `${CLAUDE_PLUGIN_ROOT}/skills/interrogate/SKILL.md` (leerla por ruta, no invocarla). Los hallazgos verificados vuelven a Sonnet y cuentan dentro del lazo de correccion (maximo 2 iteraciones en total).
 
 ## Respuesta final
 
@@ -249,4 +264,4 @@ Antes de cerrar, repasar la tarea con el principio `proponer-determinismo`. Si a
 
 Si hubo correcciones, listar al final cada regla con su mecanismo, su estado en la tabla y el commit `correct:`.
 
-Si la tarea fue larga, terminar con una linea sugiriendo `/reflect` para lo que no es imponible (como trabajar, que skill deberia haberse usado). Si el repo nunca paso por `/correct`, sugerirlo una vez para revisar el historial completo.
+Si la tarea fue larga, terminar con una linea sugiriendo `/gas-mode:reflect` para lo que no es imponible (como trabajar, que skill deberia haberse usado). Si el repo nunca paso por `/gas-mode:correct`, sugerirlo una vez para revisar el historial completo.

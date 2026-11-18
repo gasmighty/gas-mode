@@ -40,9 +40,9 @@ Las skills y los CLAUDE.md suelen ser symlinks. Antes de proponer una edicion, r
 readlink -f <ruta>
 ```
 
-- Solo se editan archivos cuya ruta real esta dentro de `~/Documents/dev/agents-config/` (skills en `claude/skills/`, comandos en `claude/commands/`, `claude/CLAUDE.md`, `projects/*/CLAUDE.md`).
-- Si la ruta real esta en `~/.agents/skills/`, o es una carpeta suelta en `~/.claude/skills/` que no viene de agents-config, una actualizacion la puede pisar. Proponer primero copiarla a `agents-config/claude/skills/` y linkearla, y editar la copia.
-- Nunca editar nada bajo `~/.claude/plugins/cache/`.
+- Se editan los archivos cuya ruta real esta en un repo git del usuario (`git -C <carpeta> rev-parse --show-toplevel` funciona) y `~/.claude/CLAUDE.md`.
+- Si la ruta real esta bajo `~/.claude/plugins/cache/`, es un plugin instalado: nunca editarla. Proponer el cambio como texto para un PR en el repo del plugin.
+- Si la ruta real no esta versionada (carpeta suelta en `~/.claude/skills/` o `~/.agents/skills/`), una actualizacion la puede pisar. Avisarlo y proponer moverla a un repo antes de editarla.
 
 ## 4. Presentar y esperar
 

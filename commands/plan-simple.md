@@ -1,12 +1,16 @@
+---
+description: Escribe un plan de implementacion autosuficiente en Docs/ del proyecto. No lo ejecuta.
+argument-hint: <tarea>
+---
+
 # Plan Simple — Escribir un buen plan de implementacion
 
 La tarea a planificar es: **$ARGUMENTS**
 
 Si `$ARGUMENTS` esta vacio, pedirle al usuario que describa la tarea antes de continuar.
 
-Este comando SOLO escribe el plan. No delega a Cursor Agent ni a ningun otro
-subagente, no ejecuta codigo y no hace verificacion posterior — para eso existen
-`junior-plan` (delegacion headless) y `junior-orca` (delegacion en pestana de Orca).
+Este comando solo escribe el plan. No delega, no ejecuta codigo y no verifica.
+Dentro de gas-mode, la delegacion la hace la skill gas-mode.
 
 **Lector del plan:** un developer de bajo seniority que nunca trabajo en este proyecto,
 o un agente sin acceso a esta conversacion. No conoce el dominio, la historia del

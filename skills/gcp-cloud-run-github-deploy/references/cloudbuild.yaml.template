@@ -1,0 +1,27 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - REGION-docker.pkg.dev/PROJECT/cloud-run-source-deploy/SERVICE:$COMMIT_SHA
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - REGION-docker.pkg.dev/PROJECT/cloud-run-source-deploy/SERVICE:$COMMIT_SHA
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - SERVICE
+      - --image=REGION-docker.pkg.dev/PROJECT/cloud-run-source-deploy/SERVICE:$COMMIT_SHA
+      - --region=REGION
+      - --platform=managed
+      - --port=8080
+      - --iap
+      - --quiet
+images:
+  - REGION-docker.pkg.dev/PROJECT/cloud-run-source-deploy/SERVICE:$COMMIT_SHA
+options:
+  logging: CLOUD_LOGGING_ONLY

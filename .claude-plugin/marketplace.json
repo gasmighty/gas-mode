@@ -1,0 +1,14 @@
+{
+  "name": "gas-mode",
+  "owner": { "name": "gasmighty" },
+  "metadata": {
+    "description": "Plugin gas-mode: orquestador de Claude Code con gates de verificacion."
+  },
+  "plugins": [
+    {
+      "name": "gas-mode",
+      "source": "./",
+      "description": "Modo de trabajo riguroso para Claude Code con gates de verificacion."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 ---
 name: interrogate
-description: Revision adversarial de un cambio o diseno. Varios subagentes intentan romperlo y solo sobreviven los hallazgos que una ejecucion demuestra. Reporta, no corrige. Usar cuando el usuario escribe /interrogate.
+description: Revision adversarial de un cambio o diseno. Varios subagentes intentan romperlo y solo sobreviven los hallazgos que una ejecucion demuestra. Reporta, no corrige. Usar cuando el usuario escribe /gas-mode:interrogate.
 disable-model-invocation: true
 ---
 
@@ -46,4 +46,4 @@ Cuando terminan todos:
 - **Hallazgos:** para cada hallazgo verificado, el comando, su salida, como rompe la intencion y que adversarios lo encontraron. Si no sobrevive ninguno, decir "sin hallazgos verificados".
 - **Descartados:** por adversario, cuantos hallazgos se descartaron y por que.
 
-Dentro de `/gas-mode`, los hallazgos verificados vuelven a Sonnet con `SendMessage` como errores concretos. Cuentan como una iteracion mas del lazo de correccion de plan-delegar (maximo 2 en total).
+Dentro de `/gas-mode:gas-mode`, los hallazgos verificados vuelven a Sonnet con `SendMessage` como errores concretos. Cuentan como una iteracion mas del lazo de correccion de gas-mode (maximo 2 en total).

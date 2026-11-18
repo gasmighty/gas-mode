@@ -1,6 +1,6 @@
 ---
 name: correct
-description: Encuentra los errores que los agentes repiten en este repo y propone volverlos imposibles. Prueba primero arquitectura, despues tipos, despues un lint cuyo error nombra el arreglo, despues un test, y deja la documentacion para el final. Usar cuando el usuario escribe /correct.
+description: Encuentra los errores que los agentes repiten en este repo y propone volverlos imposibles. Prueba primero arquitectura, despues tipos, despues un lint cuyo error nombra el arreglo, despues un test, y deja la documentacion para el final. Usar cuando el usuario escribe /gas-mode:correct.
 disable-model-invocation: true
 ---
 
@@ -40,16 +40,16 @@ Pedir confirmacion explicita para agregar una dependencia nueva (plugin de lint,
 
 ## 4. Implementar lo aprobado
 
-- Implementar con el flujo de `/gas-mode` (`~/.claude/skills/gas-mode/SKILL.md`, seccion "Delegacion a Sonnet"): Opus escribe el plan, Sonnet implementa, Opus verifica y revisa. Una tarea del plan por clase.
+- Implementar con el flujo de `/gas-mode:gas-mode` (`${CLAUDE_PLUGIN_ROOT}/skills/gas-mode/SKILL.md`, seccion "Delegacion a Sonnet"): Opus escribe el plan, Sonnet implementa, Opus verifica y revisa. Una tarea del plan por clase.
 - Probar que cada check nuevo falla sobre un error real del pasado: reproducir ese error en un archivo temporal nuevo (no editar archivos existentes para esto), correr el check, ver que falla con el mensaje esperado y borrar el archivo temporal.
 - Correr el mismo comando localmente que en CI.
 - Las excepciones van en la linea afectada, con motivo, fecha de vencimiento y aprobacion del usuario.
-- Commits: segun "Commits" de gas-mode si el modo esta activo; si no, solo cuando el usuario lo pide. Push siempre con confirmacion.
+- Commits: segun "Commits" de gas-mode si el modo esta activo; si no, solo cuando el usuario lo pide. Push siempre con confirmacion. Los cambios a la tabla de reglas llegan a la rama por defecto solo via PR.
 
 ## 5. Mantener la tabla de reglas
 
-Usar la misma tabla que `/gas-mode` (seccion "Correcciones" de `~/.claude/skills/gas-mode/SKILL.md`): seccion `## Reglas impuestas` del CLAUDE.md del proyecto, con columnas Regla, Lo impone, Nivel y Estado. Editar el archivo real que resolvio `readlink -f`. Si una regla ya estaba en la tabla y nada la impone, es una repeticion: subirla de nivel en el mismo cambio. Borrar una regla cuando su error ya no puede ocurrir.
+Usar la misma tabla que `/gas-mode:gas-mode` (seccion "Correcciones" de `${CLAUDE_PLUGIN_ROOT}/skills/gas-mode/SKILL.md`): seccion `## Reglas impuestas` del CLAUDE.md del proyecto, con columnas Regla, Lo impone, Nivel y Estado. Editar el archivo real que resolvio `readlink -f`. Si una regla ya estaba en la tabla y nada la impone, es una repeticion: subirla de nivel en el mismo cambio. Borrar una regla cuando su error ya no puede ocurrir.
 
-`/gas-mode` aplica este mismo proceso en el momento, ante cada correccion del usuario. `/correct` es la version que revisa todo el historial: usarla al empezar en un repo o cuando la tabla no refleja errores que se ven en los commits.
+`/gas-mode:gas-mode` aplica este mismo proceso en el momento, ante cada correccion del usuario. `/gas-mode:correct` es la version que revisa todo el historial: usarla al empezar en un repo o cuando la tabla no refleja errores que se ven en los commits.
 
 **Respuesta:** cada clase con su evidencia, el nivel elegido y por que un nivel mas alto no funciono.

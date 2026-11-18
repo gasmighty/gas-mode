@@ -2,7 +2,7 @@
 
 Deployar, diagnosticar un build roto o investigar un problema de un servicio en Cloud Run o Cloud Build. Primero se entiende el estado en solo lectura; despues se cambia lo minimo. Principios: fix-root-causes, prove-it-works, make-operations-idempotent.
 
-Antes de empezar, si el CLAUDE.md global o el del proyecto tienen una seccion sobre GCP o deploy, leerla. Para conectar un repo a Cloud Run por primera vez, si existe `~/.claude/skills/gcp-cloud-run-github-deploy/SKILL.md`, seguirla (leerla por ruta).
+Antes de empezar, si el CLAUDE.md global o el del proyecto tienen una seccion sobre GCP o deploy, leerla. Para conectar un repo a Cloud Run por primera vez, seguir `<raiz del plugin>/skills/gcp-cloud-run-github-deploy/SKILL.md` (leerla por ruta; `<raiz del plugin>` esta definida en SKILL.md).
 
 1. Identificar el objetivo (solo lectura): proyecto, region, servicio y trigger. `gcloud config list`, `gcloud run services describe <servicio> --region <region>`, `gcloud builds triggers list --region <region>`. Si hay mas de un proyecto o servicio posible, preguntar cual.
 2. Diagnosticar (solo lectura): ultimo build y su error real (`gcloud builds list --limit 5`, `gcloud builds describe <id> --format="value(statusDetail)"`), revisiones y trafico (`gcloud run revisions list --service <servicio> --region <region>`) y logs (`gcloud logging read` con filtro por servicio y severidad, acotado en tiempo).

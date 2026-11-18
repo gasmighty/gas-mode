@@ -1,6 +1,6 @@
-# Plan y delegacion — flujo compartido
+# Delegar a Sonnet
 
-Este archivo lo leen `/junior-plan` (ejecutor `cursor`) y `/sonnet-plan` (ejecutor `sonnet`). Variables que define el comando que lo invoca: `EJECUTOR` y `TAREA`.
+Este archivo lo lee gas-mode para delegar la implementacion a un subagente Sonnet. La variable `TAREA` la define quien lo invoca.
 
 Si `TAREA` esta vacia, pedirle al usuario que describa la tarea antes de continuar.
 
@@ -74,7 +74,7 @@ Antes de lanzar nada, mostrar la ruta del plan y un resumen de 2-3 lineas (canti
 
 ## Paso 3 — Ejecutar
 
-Prompt base para el ejecutor (reemplazar `{plan}` por la ruta absoluta del plan y `{proyecto}` por la del proyecto):
+Prompt base para el subagente (reemplazar `{plan}` por la ruta absoluta del plan y `{proyecto}` por la del proyecto):
 
 ```
 Implementa el plan ubicado en {plan}. Directorio de trabajo: {proyecto}.
@@ -92,23 +92,15 @@ Instrucciones importantes:
 - Al terminar, responde con: archivos modificados, salida final del type-check/lint y cualquier desvio del plan.
 ```
 
-### Si EJECUTOR = cursor
+### Lanzar el subagente
 
-```bash
-agent --print --trust --model auto --workspace $(pwd) "{prompt base}"
-```
-
-`run_in_background: true`, timeout 300000ms. Avisar al usuario que Cursor esta trabajando.
-
-### Si EJECUTOR = sonnet
-
-Herramienta `Agent` con `subagent_type: general-purpose`, `model: sonnet` (Sonnet 5.5), `run_in_background: true`, `description: "Implementar plan"` y `{prompt base}` como prompt. Avisar al usuario que el subagente esta trabajando. El resultado llega como notificacion; no hacer polling. Guardar el nombre/ID del subagente para el Paso 4b.
+Herramienta `Agent` con `subagent_type: general-purpose`, `model: sonnet`, `run_in_background: true`, `description: "Implementar plan"` y `{prompt base}` como prompt. Avisar al usuario que el subagente esta trabajando. El resultado llega como notificacion; no hacer polling. Guardar el nombre/ID del subagente para el Paso 4b.
 
 ---
 
 ## Paso 4 — Verificacion objetiva
 
-Cuando el ejecutor termine, correr por cuenta propia (no confiar solo en lo que reporta):
+Cuando el subagente termine, correr por cuenta propia (no confiar solo en lo que reporta):
 
 - `npm run typecheck` o `npm run type-check` si existe; si no, `npm run build`
 - `npm run lint` si existe
@@ -117,10 +109,7 @@ Cuando el ejecutor termine, correr por cuenta propia (no confiar solo en lo que 
 
 ## Paso 4b — Lazo de correccion (maximo 2 iteraciones)
 
-Si la verificacion falla o la revision (Paso 5) encuentra errores concretos, devolverselos al ejecutor en vez de corregirlos directamente:
-
-- `sonnet`: `SendMessage` al mismo subagente con los errores exactos (archivo, linea, mensaje). Conserva su contexto.
-- `cursor`: nueva ejecucion de `agent --print ...` con un prompt que incluya el plan y los errores a corregir.
+Si la verificacion falla o la revision (Paso 5) encuentra errores concretos, devolverselos al subagente en vez de corregirlos directamente: `SendMessage` al mismo subagente con los errores exactos (archivo, linea, mensaje). Conserva su contexto.
 
 Despues de cada iteracion repetir Paso 4. Si tras 2 iteraciones sigue fallando, parar y reportar al usuario el estado y la causa probable; no cambiar de enfoque sin consultar.
 
